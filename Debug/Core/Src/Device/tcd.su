@@ -1,0 +1,8 @@
+../Core/Src/Device/tcd.c:48:6:TCD_init	16	static
+../Core/Src/Device/tcd.c:55:6:TCD_loop	4	static
+../Core/Src/Device/tcd.c:58:6:TCD_payout_card	24	static
+../Core/Src/Device/tcd.c:66:6:TCD_reset	24	static
+../Core/Src/Device/tcd.c:75:6:TCD_callback	24	static
+../Core/Src/Device/tcd.c:85:6:TCD_is_error	24	static
+../Core/Src/Device/tcd.c:90:6:TCD_is_lower	24	static
+../Core/Src/Device/tcd.c:95:6:TCD_is_empty	24	static

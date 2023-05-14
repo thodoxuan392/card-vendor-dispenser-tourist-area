@@ -1,0 +1,4 @@
+../Core/Src/Device/bill_acceptor.c:11:6:BILLACCEPTOR_init	4	static
+../Core/Src/Device/bill_acceptor.c:14:6:BILLACCEPTOR_loop	4	static
+../Core/Src/Device/bill_acceptor.c:17:6:BILLACCEPTOR_is_detected	4	static
+../Core/Src/Device/bill_acceptor.c:20:6:BILLACCEPTOR_get	4	static

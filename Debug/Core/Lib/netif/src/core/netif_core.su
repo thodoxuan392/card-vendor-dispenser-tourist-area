@@ -1,0 +1,12 @@
+../Core/Lib/netif/src/core/netif_core.c:56:13:netif_core_process_response	24	static
+../Core/Lib/netif/src/core/netif_core.c:106:16:netif_core_init	8	static
+../Core/Lib/netif/src/core/netif_core.c:120:16:netif_core_run	16	static
+../Core/Lib/netif/src/core/netif_core.c:143:16:netif_core_deinit	8	static
+../Core/Lib/netif/src/core/netif_core.c:156:6:netif_core_atcmd_is_responded	16	static
+../Core/Lib/netif/src/core/netif_core.c:176:6:netif_core_atcmd_get_data_before	16	static
+../Core/Lib/netif/src/core/netif_core.c:199:6:netif_core_atcmd_get_data_after	16	static
+../Core/Lib/netif/src/core/netif_core.c:222:6:netif_core_atcmd_reset	16	static
+../Core/Lib/netif/src/core/netif_core.c:242:6:netif_core_4g_input	24	static
+../Core/Lib/netif/src/core/netif_core.c:256:6:netif_core_4g_output	16	static
+../Core/Lib/netif/src/core/netif_core.c:268:6:netif_core_wifi_ethernet_input	24	static
+../Core/Lib/netif/src/core/netif_core.c:282:6:netif_core_wifi_ethernet_output	16	static

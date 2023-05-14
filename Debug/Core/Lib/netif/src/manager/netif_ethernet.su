@@ -1,0 +1,5 @@
+../Core/Lib/netif/src/manager/netif_ethernet.c:18:16:netif_ethernet_init	4	static
+../Core/Lib/netif/src/manager/netif_ethernet.c:29:16:netif_ethernet_run	16	static
+../Core/Lib/netif/src/manager/netif_ethernet.c:74:16:netif_ethernet_is_connected	16	static
+../Core/Lib/netif/src/manager/netif_ethernet.c:95:16:netif_ethernet_get_ip	32	static
+../Core/Lib/netif/src/manager/netif_ethernet.c:153:16:netif_ethernet_get_mac	32	static

@@ -1,0 +1,5 @@
+../Core/Lib/netif/src/apps/netif_http.c:18:16:netif_http_init	8	static
+../Core/Lib/netif/src/apps/netif_http.c:29:16:netif_http_run	4	static
+../Core/Lib/netif/src/apps/netif_http.c:39:16:netif_http_deinit	8	static
+../Core/Lib/netif/src/apps/netif_http.c:52:16:netif_http_send_get_request	24	static
+../Core/Lib/netif/src/apps/netif_http.c:97:16:netif_http_send_post_request	32	static

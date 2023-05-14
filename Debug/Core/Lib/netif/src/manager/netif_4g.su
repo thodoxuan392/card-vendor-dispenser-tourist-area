@@ -1,0 +1,10 @@
+../Core/Lib/netif/src/manager/netif_4g.c:52:16:netif_4g_init	4	static
+../Core/Lib/netif/src/manager/netif_4g.c:63:16:netif_4g_run	16	static
+../Core/Lib/netif/src/manager/netif_4g.c:100:16:netif_4g_deinit	4	static
+../Core/Lib/netif/src/manager/netif_4g.c:113:16:netif_4g_get_imei	40	static
+../Core/Lib/netif/src/manager/netif_4g.c:182:16:netif_4g_send_sms	16	static
+../Core/Lib/netif/src/manager/netif_4g.c:192:16:netif_4g_is_connected	16	static
+../Core/Lib/netif/src/manager/netif_4g.c:203:16:netif_4g_is_internet_connected	16	static
+../Core/Lib/netif/src/manager/netif_4g.c:210:23:netif_4g_startup	16	static
+../Core/Lib/netif/src/manager/netif_4g.c:301:23:netif_4g_setting	16	static
+../Core/Lib/netif/src/manager/netif_4g.c:364:13:netif_4g_handle_imei_response	32	static

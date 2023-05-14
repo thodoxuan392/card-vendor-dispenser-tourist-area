@@ -1,0 +1,10 @@
+../Core/Lib/netif/src/manager/netif_wifi.c:38:16:netif_wifi_init	4	static
+../Core/Lib/netif/src/manager/netif_wifi.c:56:16:netif_wifi_run	24	static
+../Core/Lib/netif/src/manager/netif_wifi.c:132:16:netif_wifi_station_mode	16	static
+../Core/Lib/netif/src/manager/netif_wifi.c:190:16:netif_wifi_connect_ap	24	static
+../Core/Lib/netif/src/manager/netif_wifi.c:239:16:netif_wifi_disconnect_ap	16	static
+../Core/Lib/netif/src/manager/netif_wifi.c:288:16:netif_wifi_is_connected	16	static
+../Core/Lib/netif/src/manager/netif_wifi.c:301:16:netif_wifi_reconnect	16	static
+../Core/Lib/netif/src/manager/netif_wifi.c:351:16:netif_wifi_start_smartconfig	16	static
+../Core/Lib/netif/src/manager/netif_wifi.c:400:16:netif_wifi_stop_smartconfig	16	static
+../Core/Lib/netif/src/manager/netif_wifi.c:443:23:netif_wifi_fsm	16	static
