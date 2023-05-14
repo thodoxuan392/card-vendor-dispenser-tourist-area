@@ -1,3 +1,0 @@
-../Core/Src/Device/eeprom.c:13:6:EEPROM_init	4	static
-../Core/Src/Device/eeprom.c:16:6:EEPROM_read	24	static
-../Core/Src/Device/eeprom.c:19:6:EEPROM_write	24	static

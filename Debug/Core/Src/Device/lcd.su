@@ -1,4 +1,0 @@
-../Core/Src/Device/lcd.c:42:6:LCD_init	16	static
-../Core/Src/Device/lcd.c:50:6:LCD_clear	4	static
-../Core/Src/Device/lcd.c:53:6:LCD_display_char	16	static
-../Core/Src/Device/lcd.c:56:6:LCD_display_str	16	static

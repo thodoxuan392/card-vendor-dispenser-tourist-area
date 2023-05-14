@@ -1,4 +1,0 @@
-../Core/Src/Hal/i2c.c:15:6:I2C_init	8	static
-../Core/Src/Hal/i2c.c:31:6:I2C_write	40	static
-../Core/Src/Hal/i2c.c:37:6:I2C_read	40	static
-../Core/Src/Hal/i2c.c:43:6:I2C_write_and_read	32	static

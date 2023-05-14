@@ -1,3 +1,0 @@
-../Core/Lib/netif/src/netif.c:13:16:netif_init	8	static
-../Core/Lib/netif/src/netif.c:38:16:netif_run	8	static
-../Core/Lib/netif/src/netif.c:50:16:netif_deinit	8	static
