@@ -36,7 +36,7 @@ bool I2C_write(uint8_t address, uint8_t * data_w, size_t w_len){
 
 bool I2C_read(uint8_t address, uint8_t * data_r, size_t r_len){
 	// Read
-	bool success = HAL_I2C_Master_Transmit(&hi2c1, address, data_r, r_len, I2C_TIMEOUT) == HAL_OK;
+	bool success = HAL_I2C_Master_Receive(&hi2c1, address, data_r, r_len, I2C_TIMEOUT) == HAL_OK;
 	return success;
 }
 

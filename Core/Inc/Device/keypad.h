@@ -12,21 +12,22 @@
 #include "stdbool.h"
 
 typedef enum {
-	KEY_0 = 4,
-	KEY_1 = 3,
-	KEY_2 = 7,
-	KEY_3 = 11,
-	KEY_4 = 2,
-	KEY_5 = 6,
-	KEY_6 = 10,
-	KEY_7 = 1,
-	KEY_8 = 5,
+	KEY_0 = 0,
+	KEY_1 = 1,
+	KEY_2 = 2,
+	KEY_3 = 3,
+	KEY_4 = 4,
+	KEY_5 = 5,
+	KEY_6 = 6,
+	KEY_7 = 7,
+	KEY_8 = 8,
 	KEY_9 = 9,
-	KEY_STAR = 0,
-	KEY_SHARP = 8,
+	KEY_STAR = 10,
+	KEY_SHARP = 11,
 }KEY_t;
 
 bool KEYPAD_init();
 uint8_t KEYPAD_is_pressed();
+bool KEYPAD_test();
 
 #endif /* INC_DEVICE_KEYPAD_H_ */

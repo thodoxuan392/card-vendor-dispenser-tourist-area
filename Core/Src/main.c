@@ -23,6 +23,7 @@
 /* USER CODE BEGIN Includes */
 #include "Hal/clock.h"
 #include "Hal/gpio.h"
+#include "Hal/timer.h"
 #include "Hal/i2c.h"
 #include "Hal/uart.h"
 #include "Device/bill_acceptor.h"
@@ -48,11 +49,6 @@
 
 /* Private variables ---------------------------------------------------------*/
 
-/* USER CODE BEGIN PV */
-
-/* USER CODE END PV */
-
-/* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -81,6 +77,7 @@ int main(void)
   // Hal init
   CLOCK_init();
   GPIO_init();
+  TIMER_init();
   UART_init();
   I2C_init();
   // Device Init
@@ -92,6 +89,7 @@ int main(void)
   /* USER CODE END Init */
 
   /* Configure the system clock */
+
 
   /* USER CODE BEGIN SysInit */
 
@@ -106,6 +104,11 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+//	  BILLACCEPTOR_test();
+//	  EEPROM_test();
+//	  KEYPAD_test();
+	  LCD_test();
+//	  TCD_test();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

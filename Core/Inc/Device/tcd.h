@@ -26,5 +26,7 @@ bool TCD_reset(TCD_id_t id, bool enable);
 bool TCD_is_error(TCD_id_t id);
 bool TCD_is_lower(TCD_id_t id);
 bool TCD_is_empty(TCD_id_t id);
+// For test IO
+bool TCD_test();
 
 #endif /* INC_DEVICE_TCD_H_ */

@@ -96,3 +96,15 @@ bool TCD_is_empty(TCD_id_t id ){
 	uint8_t io_index = (id == TCD_1)? TCD_EMPTY1_IO : TCD_EMPTY2_IO;
 	return HAL_GPIO_ReadPin(gpio_table[io_index].port, gpio_table[io_index].init_info.Pin);
 }
+
+bool TCD_test(){
+	static bool set = false;
+	set = !set;
+	// Payout
+	TCD_payout_card(TCD_1, set);
+	TCD_reset(TCD_1, set);
+	TCD_callback(TCD_1, set);
+	TCD_payout_card(TCD_2, set);
+	TCD_reset(TCD_2, set);
+	TCD_callback(TCD_2, set);
+}

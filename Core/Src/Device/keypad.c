@@ -22,14 +22,14 @@ enum {
 };
 
 static GPIO_info_t gpio_table[] = {
-		[KEYPAD_R1] = 		{GPIOD, { GPIO_PIN_0, GPIO_MODE_INPUT, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH}},
-		[KEYPAD_R2] = 		{GPIOD,{ GPIO_PIN_1, GPIO_MODE_INPUT, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH }},
-		[KEYPAD_R3] = 		{GPIOD,{ GPIO_PIN_2, GPIO_MODE_INPUT, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH }},
-		[KEYPAD_R4] = 		{GPIOD,{ GPIO_PIN_3, GPIO_MODE_INPUT, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH }},
-		[KEYPAD_C1] = 		{GPIOD,{ GPIO_PIN_4, GPIO_MODE_INPUT, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH }},
-		[KEYPAD_C2] = 		{GPIOD,{ GPIO_PIN_5, GPIO_MODE_INPUT, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH }},
-		[KEYPAD_C3] = 		{GPIOD,{ GPIO_PIN_6, GPIO_MODE_INPUT, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH }},
-		[KEYPAD_LEDP] = 	{GPIOD,{ GPIO_PIN_7, GPIO_MODE_INPUT, GPIO_NOPULL, GPIO_SPEED_FREQ_HIGH }}
+		[KEYPAD_C1] = 		{GPIOD, { GPIO_PIN_0, GPIO_MODE_INPUT, GPIO_PULLDOWN, GPIO_SPEED_FREQ_HIGH}},
+		[KEYPAD_C2] = 		{GPIOD,{ GPIO_PIN_1, GPIO_MODE_INPUT, GPIO_PULLDOWN, GPIO_SPEED_FREQ_HIGH }},
+		[KEYPAD_C3] = 		{GPIOD,{ GPIO_PIN_2, GPIO_MODE_INPUT, GPIO_PULLDOWN, GPIO_SPEED_FREQ_HIGH }},
+		[KEYPAD_R1] = 		{GPIOD,{ GPIO_PIN_3, GPIO_MODE_OUTPUT_PP, GPIO_PULLUP, GPIO_SPEED_FREQ_HIGH }},
+		[KEYPAD_R2] = 		{GPIOD,{ GPIO_PIN_4, GPIO_MODE_OUTPUT_PP, GPIO_PULLUP, GPIO_SPEED_FREQ_HIGH }},
+		[KEYPAD_R3] = 		{GPIOD,{ GPIO_PIN_5, GPIO_MODE_OUTPUT_PP, GPIO_PULLUP, GPIO_SPEED_FREQ_HIGH }},
+		[KEYPAD_R4] = 		{GPIOD,{ GPIO_PIN_6, GPIO_MODE_OUTPUT_PP, GPIO_PULLUP, GPIO_SPEED_FREQ_HIGH }},
+		[KEYPAD_LEDP] = 	{GPIOD,{ GPIO_PIN_7, GPIO_MODE_OUTPUT_PP, GPIO_PULLUP, GPIO_SPEED_FREQ_HIGH }}
 };
 
 // Internal function
@@ -41,34 +41,32 @@ bool KEYPAD_init(){
 	for (uint8_t var = 0; var < nb_io; ++var) {
 		HAL_GPIO_Init(gpio_table[var].port, &gpio_table[var].init_info);
 	}
+	// Enable Keypad
+	HAL_GPIO_WritePin(gpio_table[KEYPAD_LEDP].port, gpio_table[KEYPAD_LEDP].init_info.Pin, RESET);
 	return true;
 }
 
 uint8_t KEYPAD_is_pressed(){
-	// Check row
-	uint8_t row_pressed = 0xFF;
-	for (uint8_t var = KEYPAD_R1; var <= KEYPAD_R4; ++var) {
-		if(HAL_GPIO_ReadPin(gpio_table[var].port, gpio_table[var].init_info.Pin)){
-			row_pressed = var;
-			break;
+	uint8_t key_pressed = 0xFF;
+	for (uint8_t row_id = KEYPAD_R1; row_id <= KEYPAD_R4; row_id++) {
+		HAL_GPIO_WritePin(gpio_table[row_id].port, gpio_table[row_id].init_info.Pin, SET);
+		for (uint8_t col_id = KEYPAD_C1; col_id <= KEYPAD_C3; col_id++) {
+			if(HAL_GPIO_ReadPin(gpio_table[col_id].port, gpio_table[col_id].init_info.Pin)){
+				key_pressed = KEYPAD_calculate_key(row_id, col_id);
+			}
 		}
+		HAL_GPIO_WritePin(gpio_table[row_id].port, gpio_table[row_id].init_info.Pin, RESET);
+		if(key_pressed != 0xFF) break;
 	}
-	// Check column
-	uint8_t column_pressed = 0xFF;
-	for (uint8_t var = KEYPAD_C1; var <= KEYPAD_C3; ++var) {
-		if(HAL_GPIO_ReadPin(gpio_table[var].port, gpio_table[var].init_info.Pin)){
-			column_pressed = var;
-			break;
-		}
-	}
-	if(row_pressed != 0xFF && column_pressed != 0xFF){
-		// Calculate Key
-		return KEYPAD_calculate_key(row_pressed, column_pressed);
-	}
-	return 0xFF;
+	return key_pressed;
 }
 
 static uint8_t KEYPAD_calculate_key(uint8_t row, uint8_t col){
 	return (col - KEYPAD_C1) * 4 + (row - KEYPAD_R1);
+}
+
+bool KEYPAD_test(){
+	uint8_t key = KEYPAD_is_pressed();
+	uint8_t a = 1;
 }
 
