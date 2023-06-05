@@ -21,7 +21,7 @@ TIM_HandleTypeDef htim3 = {
 	.Init = {
 		.Prescaler = 79,
 		.CounterMode = TIM_COUNTERMODE_UP,
-		.Period = 99,
+		.Period = 799,
 		.ClockDivision = TIM_CLOCKDIVISION_DIV1,
 		.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE
 	}

@@ -17,6 +17,8 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
+#include <App/mqtt.h>
+#include <Device/billacceptor.h>
 #include "main.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -26,28 +28,26 @@
 #include "Hal/timer.h"
 #include "Hal/i2c.h"
 #include "Hal/uart.h"
-#include "Device/bill_acceptor.h"
 #include "Device/eeprom.h"
 #include "Device/keypad.h"
 #include "Device/lcd.h"
 #include "Device/tcd.h"
+#include "DeviceManager/billacceptormanager.h"
+#include "DeviceManager/tcdmanager.h"
+#include "DeviceManager/keypadmanager.h"
+#include "App/config.h"
+#include "App/commandhandler.h"
+#include "App/schedulerport.h"
+#include "App/statusreporter.h"
+#include "App/statemachine.h"
+
+#include "Lib/utils/utils_logger.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 
 /* USER CODE END PTD */
-
-/* Private define ------------------------------------------------------------*/
-/* USER CODE BEGIN PD */
-/* USER CODE END PD */
-
-/* Private macro -------------------------------------------------------------*/
-/* USER CODE BEGIN PM */
-
-/* USER CODE END PM */
-
-/* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PFP */
 
@@ -86,35 +86,40 @@ int main(void)
   TCD_init();
   KEYPAD_init();
   LCD_init();
+  // Device Manager Init
+  BILLACCEPTORMNG_init();
+  TCDMNG_init();
+  KEYPADMNG_init();
+  // App Init
+  CONFIG_init();
+  COMMANDHANDLER_init();
+  MQTT_init();
+  SCHEDULERPORT_init();
+  STATUSREPORTER_init();
+  STATEMACHINE_init();
   /* USER CODE END Init */
 
-  /* Configure the system clock */
-
-
-  /* USER CODE BEGIN SysInit */
-
-  /* USER CODE END SysInit */
-
-  /* Initialize all configured peripherals */
   /* USER CODE BEGIN 2 */
-
+  BILLACCEPTOR_test();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-//	  BILLACCEPTOR_test();
-//	  EEPROM_test();
-//	  KEYPAD_test();
-	  LCD_test();
-//	  TCD_test();
+//	  KEYPADMNG_run();
+//	  STATEMACHINE_run();
+	  BILLACCEPTOR_test_2();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
 }
+
+/* USER CODE BEGIN 4 */
+
+/* USER CODE END 4 */
 
 /**
   * @brief  This function is executed in case of error occurrence.

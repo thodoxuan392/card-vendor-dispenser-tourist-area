@@ -45,11 +45,18 @@ static GPIO_info_t gpio_table[] = {
 };
 
 
+static void TCD_1ms();
+
 bool TCD_init(){
 	int nb_io = sizeof(gpio_table)/sizeof(GPIO_info_t);
 	for (uint8_t var = 0; var < nb_io; ++var) {
 		HAL_GPIO_Init(gpio_table[var].port, &gpio_table[var].init_info);
 	}
+	TCD_reset(TCD_1, SET);
+	HAL_Delay(200);
+	TCD_reset(TCD_1, RESET);
+	TCD_callback(TCD_1, RESET);
+	TIMER_attach_intr_1ms(TCD_1ms);
 	return true;
 }
 bool TCD_loop(){
@@ -98,13 +105,24 @@ bool TCD_is_empty(TCD_id_t id ){
 }
 
 bool TCD_test(){
-	static bool set = false;
-	set = !set;
+//	static bool set = false;
+//	set = !set;
 	// Payout
-	TCD_payout_card(TCD_1, set);
-	TCD_reset(TCD_1, set);
-	TCD_callback(TCD_1, set);
-	TCD_payout_card(TCD_2, set);
-	TCD_reset(TCD_2, set);
-	TCD_callback(TCD_2, set);
+	TCD_payout_card(TCD_1, SET);
+	HAL_Delay(1000);
+	TCD_payout_card(TCD_1, RESET);
+	TCD_callback(TCD_1, SET);
+	HAL_Delay(1000);
+	TCD_callback(TCD_1, RESET);
+//	TCD_reset(TCD_1, set);
+//	TCD_callback(TCD_1, set);
+//	TCD_payout_card(TCD_2, SET);
+//	HAL_Delay(200);
+//	TCD_payout_card(TCD_2, RESET);
+//	TCD_reset(TCD_2, set);
+//	TCD_callback(TCD_2, set);
+}
+
+static void TCD_1ms(){
+	HAL_GPIO_TogglePin(gpio_table[TCD_PAYOUT1_IO].port, gpio_table[TCD_PAYOUT1_IO].init_info.Pin);
 }

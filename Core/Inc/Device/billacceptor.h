@@ -5,8 +5,8 @@
  *      Author: xuanthodo
  */
 
-#ifndef INC_DEVICE_BILL_ACCEPTOR_H_
-#define INC_DEVICE_BILL_ACCEPTOR_H_
+#ifndef INC_DEVICE_BILLACCEPTOR_H_
+#define INC_DEVICE_BILLACCEPTOR_H_
 
 #include "stdio.h"
 #include "stdbool.h"
@@ -43,7 +43,6 @@ typedef union {
 	BILLACCEPTOR_PollType_t type;
 }BILLACCEPTOR_Poll_t;
 
-
 typedef struct {
 	uint16_t bill_enable;
 	uint16_t bill_escrow_enable;
@@ -51,8 +50,8 @@ typedef struct {
 
 typedef struct {
 	uint8_t escrow_status;
+	uint8_t poll_status;
 }BILLACCEPTOR_Escrow_t;
-
 
 typedef struct {
 	uint8_t is_full;
@@ -71,4 +70,4 @@ bool BILLACCEPTOR_expansion_cmd();
 // For test IO
 bool BILLACCEPTOR_test();
 
-#endif /* INC_DEVICE_BILL_ACCEPTOR_H_ */
+#endif /* INC_DEVICE_BILLACCEPTOR_H_ */

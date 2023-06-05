@@ -8,9 +8,10 @@
 #ifndef INC_APP_STATEMACHINE_H_
 #define INC_APP_STATEMACHINE_H_
 
-typedef void (*sm_fn)(void);
+#include "stdio.h"
+#include "stdbool.h"
 
 bool STATEMACHINE_init();
-bool STATEMACHINE_loop();
+bool STATEMACHINE_run();
 
 #endif /* INC_APP_STATEMACHINE_H_ */

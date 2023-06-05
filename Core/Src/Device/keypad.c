@@ -46,19 +46,18 @@ bool KEYPAD_init(){
 	return true;
 }
 
-uint8_t KEYPAD_is_pressed(){
-	uint8_t key_pressed = 0xFF;
-	for (uint8_t row_id = KEYPAD_R1; row_id <= KEYPAD_R4; row_id++) {
+uint16_t KEYPAD_get_status(){
+	uint16_t keypad_status = 0x0000;
+	for (uint16_t row_id = KEYPAD_R1; row_id <= KEYPAD_R4; row_id++) {
 		HAL_GPIO_WritePin(gpio_table[row_id].port, gpio_table[row_id].init_info.Pin, SET);
 		for (uint8_t col_id = KEYPAD_C1; col_id <= KEYPAD_C3; col_id++) {
 			if(HAL_GPIO_ReadPin(gpio_table[col_id].port, gpio_table[col_id].init_info.Pin)){
-				key_pressed = KEYPAD_calculate_key(row_id, col_id);
+				keypad_status |= 1 << KEYPAD_calculate_key(row_id, col_id);
 			}
 		}
 		HAL_GPIO_WritePin(gpio_table[row_id].port, gpio_table[row_id].init_info.Pin, RESET);
-		if(key_pressed != 0xFF) break;
 	}
-	return key_pressed;
+	return keypad_status;
 }
 
 static uint8_t KEYPAD_calculate_key(uint8_t row, uint8_t col){
@@ -66,7 +65,7 @@ static uint8_t KEYPAD_calculate_key(uint8_t row, uint8_t col){
 }
 
 bool KEYPAD_test(){
-	uint8_t key = KEYPAD_is_pressed();
+	uint8_t keypad_status = KEYPAD_get_status();
 	uint8_t a = 1;
 }
 

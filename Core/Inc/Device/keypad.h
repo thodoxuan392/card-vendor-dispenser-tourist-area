@@ -22,12 +22,12 @@ typedef enum {
 	KEY_7 = 7,
 	KEY_8 = 8,
 	KEY_9 = 9,
-	KEY_STAR = 10,
-	KEY_SHARP = 11,
+	KEY_ENTER_OR_STAR = 10,
+	KEY_CANCEL_OR_SHAPH = 11,
 }KEY_t;
 
 bool KEYPAD_init();
-uint8_t KEYPAD_is_pressed();
+uint16_t KEYPAD_get_status();
 bool KEYPAD_test();
 
 #endif /* INC_DEVICE_KEYPAD_H_ */
