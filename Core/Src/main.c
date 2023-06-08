@@ -17,8 +17,6 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
-#include <App/mqtt.h>
-#include <Device/billacceptor.h>
 #include "main.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -35,7 +33,6 @@
 #include "DeviceManager/billacceptormanager.h"
 #include "DeviceManager/tcdmanager.h"
 #include "DeviceManager/keypadmanager.h"
-#include "App/config.h"
 #include "App/commandhandler.h"
 #include "App/schedulerport.h"
 #include "App/statusreporter.h"
@@ -49,7 +46,15 @@
 
 /* USER CODE END PTD */
 
-/* USER CODE BEGIN PFP */
+/* Private define ------------------------------------------------------------*/
+/* USER CODE BEGIN PD */
+/* USER CODE END PD */
+
+/* Private macro -------------------------------------------------------------*/
+/* USER CODE BEGIN PM */
+
+/* USER CODE END PM */
+
 
 /* USER CODE END PFP */
 
@@ -80,6 +85,10 @@ int main(void)
   TIMER_init();
   UART_init();
   I2C_init();
+  // Init
+  CONFIG_init();
+  SCHEDULERPORT_init();
+
   // Device Init
   BILLACCEPTOR_init();
   EEPROM_init();
@@ -91,25 +100,28 @@ int main(void)
   TCDMNG_init();
   KEYPADMNG_init();
   // App Init
-  CONFIG_init();
-  COMMANDHANDLER_init();
   MQTT_init();
+  COMMANDHANDLER_init();
   SCHEDULERPORT_init();
   STATUSREPORTER_init();
   STATEMACHINE_init();
   /* USER CODE END Init */
 
+  /* Configure the system clock */
+
+  /* USER CODE BEGIN SysInit */
+
+  /* USER CODE END SysInit */
+
+  /* Initialize all configured peripherals */
   /* USER CODE BEGIN 2 */
-  BILLACCEPTOR_test();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-//	  KEYPADMNG_run();
-//	  STATEMACHINE_run();
-	  BILLACCEPTOR_test_2();
+	  STATEMACHINE_run();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

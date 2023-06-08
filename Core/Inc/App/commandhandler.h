@@ -12,6 +12,5 @@
 #include "stdbool.h"
 
 bool COMMANDHANDLER_init();
-bool COMMANDHANDLER_execute();
 
 #endif /* INC_APP_COMMANDHANDLER_H_ */

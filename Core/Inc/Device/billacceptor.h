@@ -32,7 +32,14 @@ typedef enum {
 	IS_STATUS
 }BILLACCEPTOR_PollType_t;
 
-typedef union {
+enum {
+	BILL_STACKED = 0x0,
+	BILL_ESCROW_POSITION = 0x1,
+	BILL_RETURNED = 0x2,
+	BILL_TO_RECYCLER = 0x3
+};
+
+typedef struct {
 	struct{
 		uint8_t bill_routing;
 		uint8_t bill_type;

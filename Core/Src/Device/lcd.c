@@ -7,6 +7,7 @@
 //
 //
 #include "main.h"
+#include "stdarg.h"
 #include "Device/lcd.h"
 #include "Hal/gpio.h"
 

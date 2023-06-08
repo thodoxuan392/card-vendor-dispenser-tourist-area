@@ -6,7 +6,7 @@
  */
 
 #include <App/mqtt.h>
-#include "App/config.h"
+#include "config.h"
 #include "Lib/netif/inc/netif.h"
 #include "Lib/utils/utils_buffer.h"
 #include "Lib/utils/utils_logger.h"
@@ -80,6 +80,8 @@ void MQTT_init(){
     // Init Tx-Rx Buffer;
     utils_buffer_init(&mqtt_tx_buffer, sizeof(MQTT_message_t));
     utils_buffer_init(&mqtt_rx_buffer, sizeof(MQTT_message_t));
+    // Init netif
+    netif_init();
 }
 
 /**
@@ -94,6 +96,7 @@ void MQTT_run(){
 	static uint8_t subtopic_size = sizeof(subtopic_entry) / sizeof(subtopic_entry[0]);
 	bool internet_connected = false;
 	netif_status_t ret;
+	netif_run();
 	switch (mqtt_state) {
 		case MQTT_WAIT_FOR_INTERNET_CONNECTED:
 			netif_manager_is_connect_to_internet(&internet_connected);

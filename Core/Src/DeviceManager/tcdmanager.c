@@ -11,8 +11,8 @@
 #include "Device/tcd.h"
 #include "Lib/scheduler/scheduler.h"
 
-#define PAYOUT_DURATION			2000	//2s
-#define CALLBACK_DURATION		2000	//2s
+#define PAYOUT_DURATION			3000	//3s
+#define CALLBACK_DURATION		3000	//3s
 
 enum {
 	TCDMNG_IDLE,
@@ -97,7 +97,6 @@ uint8_t TCDMNG_get_state(){
 
 void TCDMNG_reset(){
 	reset_enable = true;
-
 }
 
 void TCDMNG_payout(){
@@ -195,7 +194,7 @@ static void TCDMNG_wait_for_callbacking(){
 }
 
 static void TCDMNG_error(){
-
+	tcdmng_state = TCDMNG_IDLE;
 }
 
 static bool TCDMNG_is_error(){
