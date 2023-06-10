@@ -5,12 +5,15 @@
  *      Author: xuanthodo
  */
 #include "main.h"
+#include "config.h"
 #include "DeviceManager/billacceptormanager.h"
 #include "Device/billacceptor.h"
 #include "Device/eeprom.h"
 #include "Device/lcd.h"
 
+#include "Lib/utils/utils_logger.h"
 #define EEPROM_AMOUNT_ADDRESS		0x01
+#define POLL_INTERVAL				200	//200ms
 
 /**
  * BULLROUTE
@@ -30,13 +33,14 @@ enum {
  * Bill Type
  */
 enum{
-	BILLTYPE_5K = 1,
+	BILLTYPE_1K = 1,
+	BILLTYPE_2K,
+	BILLTYPE_5K,
 	BILLTYPE_10K,
 	BILLTYPE_20K,
 	BILLTYPE_50K,
 	BILLTYPE_100K,
-	BILLTYPE_200K,
-	BILLTYPE_500K
+	BILLTYPE_200K
 };
 
 enum {
@@ -53,25 +57,52 @@ static bool is_accepted = false;
 static uint8_t bill_routing;
 static uint8_t bill_type_accepted;
 static uint32_t amount = 0;
+static BILLACCEPTOR_BillType_t billtype = {
+	.bill_enable = 0b0000000111111110,
+	.bill_escrow_enable = 0b0000000111111110
+};
+static BILLACCEPTOR_Escrow_t escrow = {
+	.escrow_status = 0x01
+};
+
+static BILLACCEPTOR_Security_t security = {
+	.bill_type = 0x0000
+};
+
+static BILLACCEPTOR_Poll_t poll;
 
 // BillType Mapping
 static uint32_t bill_mapping[] = {
+	[BILLTYPE_1K] = 1000,
+	[BILLTYPE_2K] = 2000,
 	[BILLTYPE_5K] = 5000,
 	[BILLTYPE_10K] = 10000,
 	[BILLTYPE_20K] = 20000,
 	[BILLTYPE_50K] = 50000,
 	[BILLTYPE_100K] = 100000,
 	[BILLTYPE_200K] = 200000,
-	[BILLTYPE_500K] = 500000,
 };
+
+static bool timeout = true;
 
 // Private function
 static void BILLACCEPTORMNG_idle();
 static void BILLACCEPTORMNG_setting_up();
 static void BILLACCEPTORMNG_have_bill();
 static void BILLACCEPTORMNG_error();
+static void BILLACCEPTOR_handle_accepted();
+static void BILLACCEPTORMNG_timeout();
 
 bool BILLACCEPTORMNG_init(){
+	CONFIG_t * config = CONFIG_get();
+	amount = config->amount;
+	BILLACCEPTOR_reset();
+	BILLACCEPTOR_Poll_t poll;
+	BILLACCEPTOR_poll(&poll);
+	BILLACCEPTOR_Setup_t setup;
+	BILLACCEPTOR_setup(&setup);
+	BILLACCEPTOR_security(&security);
+	BILLACCEPTOR_billtype(&billtype);
 
 }
 
@@ -118,6 +149,10 @@ uint32_t BILLACCEPTORMNG_get_amount(){
 	return amount;
 }
 
+void BILLACCEPTORMNG_set_amount(uint32_t _amount){
+	amount = _amount;
+}
+
 void BILLACCEPTORMNG_test(){
 
 }
@@ -126,23 +161,30 @@ void BILLACCEPTORMNG_test(){
 
 // Private function
 static void BILLACCEPTORMNG_idle(){
-	// Call Polling BillAcceptor
-	BILLACCEPTOR_Poll_t poll;
-	BILLACCEPTOR_poll(&poll);
-	switch (poll.type) {
-		case IS_BILLACCEPTED:
-			is_accepted = true;
-			bill_type_accepted = poll.BillAccepted.bill_type;
-			bill_routing = poll.BillAccepted.bill_routing;
-			billacceptormng_state = BILLACCEPTORMNG_HAVE_BILL;
-			break;
-		case IS_STATUS:
-			billacceptor_status = poll.Status.status;
-			billacceptormng_state = BILLACCEPTORMNG_ERROR;
-			break;
-		default:
-			break;
+	if(timeout){
+		timeout = false;
+		// Call Polling BillAcceptor
+		memset(&poll, 0, sizeof(BILLACCEPTOR_PollType_t));
+		BILLACCEPTOR_poll(&poll);
+		switch (poll.type) {
+			case IS_BILLACCEPTED:
+				is_accepted = true;
+				utils_log_info("Accepted: Type %x, Routing %x\r\n", poll.BillAccepted.bill_type, poll.BillAccepted.bill_routing);
+				bill_type_accepted = poll.BillAccepted.bill_type;
+				bill_routing = poll.BillAccepted.bill_routing;
+				BILLACCEPTOR_handle_accepted();
+				break;
+			case IS_STATUS:
+				utils_log_info("Status %x\r\n", poll.Status.status);
+				billacceptor_status = poll.Status.status;
+//				billacceptormng_state = BILLACCEPTORMNG_ERROR;
+				break;
+			default:
+				break;
+		}
+		SCH_Add_Task(BILLACCEPTORMNG_timeout, POLL_INTERVAL, 0);
 	}
+
 }
 
 static void BILLACCEPTORMNG_setting_up(){
@@ -154,20 +196,56 @@ static void BILLACCEPTORMNG_setting_up(){
 }
 
 static void BILLACCEPTORMNG_have_bill(){
-	// Calculate Bill Value and add it to amount
-	amount += bill_mapping[bill_type_accepted];
-	// Save it to EEPROM
-	EEPROM_write(EEPROM_AMOUNT_ADDRESS, (uint8_t*)&amount, sizeof(amount));
-	// LCD display Bill detected and Bill value
-	LCD_display_str("Bill Value %d VND is accepted", bill_mapping[bill_type_accepted]);
-	billacceptormng_state = BILLACCEPTORMNG_IDLE;
+
 }
 
 
 static void BILLACCEPTORMNG_error(){
 	// LCD display waning to indicate that BillAcceptor is not good
+	LCD_clear_screen();
 	LCD_display_str("Bill Acceptor is error with code: %d", billacceptor_status);
 	// Polling status utils it's not stacked more
 	// If timeout utils stacking resolve -> Call RESET command and switch to Setting Up
 	// Switch to IDLE state
+	billacceptormng_state = BILLACCEPTORMNG_IDLE;
 }
+
+
+static void BILLACCEPTOR_handle_accepted(){
+	switch (bill_routing) {
+		case BILL_STACKED:
+//			utils_log_info("Bill is stacked\r\n");
+//			BILLACCEPTOR_escrow(&escrow);
+//			is_accepted = false;
+//			// Calculate Bill Value and add it to amount
+//			amount += bill_mapping[bill_type_accepted];
+//			// Save it to EEPROM
+//			EEPROM_write(EEPROM_AMOUNT_ADDRESS, (uint8_t*)&amount, sizeof(amount));
+//			// LCD display Bill detected and Bill value
+//			LCD_clear_screen();
+//			LCD_display_str("Bill Value %d VND is accepted", bill_mapping[bill_type_accepted]);
+			break;
+		case BILL_ESCROW_POSITION:
+			utils_log_info("Bill escrow position\r\n");
+			// Call escrow
+			HAL_Delay(1000);
+			BILLACCEPTOR_escrow(&escrow);
+//			HAL_Delay(1000);
+//			memset(&poll, 0, sizeof(BILLACCEPTOR_PollType_t));
+//			BILLACCEPTOR_poll(&poll);
+			break;
+		case BILL_RETURNED:
+			utils_log_info("Bill return\r\n");
+			break;
+		case BILL_TO_RECYCLER:
+			utils_log_info("Bill to recycler\r\n");
+			break;
+		default:
+			break;
+	}
+}
+
+static void BILLACCEPTORMNG_timeout(){
+	timeout = true;
+}
+

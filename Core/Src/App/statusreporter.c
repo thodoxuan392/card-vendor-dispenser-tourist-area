@@ -23,6 +23,8 @@ static uint8_t state = STATUSREPORTER_IDLE;
 static bool timeout_flag = true;
 
 // Private function
+static void STATUSREPORTER_idle();
+static void STATUSREPORTER_report();
 static void STATUSREPORTER_tcd_status();
 static void STATUSREPORTER_billacceptor_status();
 static void STATUSREPORTER_build_tcd_status_topic(char * buf, char * device_id);
@@ -38,7 +40,10 @@ bool STATUSREPORTER_init(){
 bool STATUSREPORTER_run(){
 	switch (state) {
 		case STATUSREPORTER_IDLE:
-
+			STATUSREPORTER_idle();
+			break;
+		case STATUSREPORTER_REPORT:
+			STATUSREPORTER_report();
 			break;
 		default:
 			break;
@@ -127,15 +132,19 @@ static void STATUSREPORTER_build_billacceptor_status_payload(char * buf, uint8_t
 				status);
 }
 
-static void STATUSREPORTER_build_billacceptor_status_topic(char * buf, char * device_id){
+static void STATUSREPORTER_build_amount_topic(char * buf, char * device_id){
 	snprintf(buf,
 				TOPIC_MAX_LEN,
 				"device/%d/report/amount",
 				device_id);
 }
-static void STATUSREPORTER_build_billacceptor_status_payload(char * buf, uint32_t amount){
+static void STATUSREPORTER_build_amount_payload(char * buf, uint32_t amount){
 	snprintf(buf,
 				PAYLOAD_MAX_LEN,
 				"%d",
 				amount);
+}
+
+static void STATUSREPORTER_timeout(){
+	timeout_flag = true;
 }

@@ -37,16 +37,19 @@ static uint16_t tx_buf[64];
 
 static void BILLACCEPTOR_on_1ms_interrupt();
 static bool BILLACCEPTOR_send_data(uint16_t *data , size_t data_len);
+static bool BILLACCEPTOR_clear_data();
 static uint8_t BILLACCEPTOR_calculate_chk(uint16_t * data, size_t data_len);
 static bool BILLACCEPTOR_receive_response(uint16_t *data, size_t data_len);
 static bool BILLACCEPTOR_receive_response_timeout(uint16_t *data, size_t expected_len, size_t * real_len, uint16_t timeout);
 static bool BILLACCEPTOR_is_res_ack(uint16_t code);
+static void BILLACCEPTOR_send_ack();
 
 bool BILLACCEPTOR_init(){
 	TIMER_attach_intr_1ms(BILLACCEPTOR_on_1ms_interrupt);
 }
 
 bool BILLACCEPTOR_reset(){
+	BILLACCEPTOR_clear_data();
 	uint8_t cmd[1] = {BILLACCEPTOR_RESET};
 	BILLACCEPTOR_send_data(cmd, 1);
 	uint16_t code;
@@ -60,6 +63,7 @@ bool BILLACCEPTOR_reset(){
 }
 
 bool BILLACCEPTOR_setup(BILLACCEPTOR_Setup_t *setup){
+	BILLACCEPTOR_clear_data();
 	// Send command
 	uint16_t cmd[1] = { BILLACCEPTOR_SETUP };
 	BILLACCEPTOR_send_data(cmd, 1);
@@ -73,6 +77,7 @@ bool BILLACCEPTOR_setup(BILLACCEPTOR_Setup_t *setup){
 	if(BILLACCEPTOR_calculate_chk(res, res_size-1) != (uint8_t)res[res_size-1]){
 		return false;
 	}
+	BILLACCEPTOR_send_ack();
 	setup->feature_level = res[0];
 	setup->currency_code[0] = res[1];
 	setup->currency_code[1] = res[2];
@@ -89,6 +94,7 @@ bool BILLACCEPTOR_setup(BILLACCEPTOR_Setup_t *setup){
 }
 
 bool BILLACCEPTOR_security(BILLACCEPTOR_Security_t * security){
+	BILLACCEPTOR_clear_data();
 	// Send command
 	uint16_t cmd[3];
 	cmd[0] = BILLACCEPTOR_SECURITY;
@@ -107,21 +113,27 @@ bool BILLACCEPTOR_security(BILLACCEPTOR_Security_t * security){
 }
 
 bool BILLACCEPTOR_poll(BILLACCEPTOR_Poll_t * poll){
+	BILLACCEPTOR_clear_data();
 	// Send command
 	uint16_t cmd[1] = {BILLACCEPTOR_POLL};
 	BILLACCEPTOR_send_data(cmd, 1);
 	// Wait for get response
-	uint16_t res[2];
+	uint16_t res[17];
 	size_t expected_res_size = sizeof(res)/sizeof(uint16_t);
-	size_t real_res_size;
+	size_t real_res_size = 0;
 	if(!BILLACCEPTOR_receive_response_timeout(res, expected_res_size, &real_res_size, 100)){
+		return false;
+	}
+	if(real_res_size == 0){
 		return false;
 	}
 	// Validate checksum
 	if(BILLACCEPTOR_calculate_chk(res, real_res_size-1) != (uint8_t)res[real_res_size-1]){
 		return false;
 	}
-	if((res[0] >> 7)){
+	BILLACCEPTOR_send_ack();
+	poll->type = 0xFF;
+	if((res[0] >> 7) & 0x01){
 		// BillAccptec Type
 		poll->BillAccepted.bill_routing = (res[0] >> 4) & 0x07;
 		poll->BillAccepted.bill_type = res[0] & 0x0F;
@@ -135,6 +147,7 @@ bool BILLACCEPTOR_poll(BILLACCEPTOR_Poll_t * poll){
 }
 
 bool BILLACCEPTOR_billtype(BILLACCEPTOR_BillType_t * billtype){
+	BILLACCEPTOR_clear_data();
 	// Send command
 	uint16_t cmd[5];
 	cmd[0] = BILLACCEPTOR_BILLTYPE;
@@ -155,26 +168,26 @@ bool BILLACCEPTOR_billtype(BILLACCEPTOR_BillType_t * billtype){
 }
 
 bool BILLACCEPTOR_escrow(BILLACCEPTOR_Escrow_t * escrow){
+	BILLACCEPTOR_clear_data();
 	// Send command
 	uint16_t cmd[2];
 	cmd[0] = BILLACCEPTOR_ESCROW;
 	cmd[1] = escrow->escrow_status;
 	BILLACCEPTOR_send_data(cmd, 2);
 	// Wait for get response
-	uint16_t res[2];
-	size_t res_size = sizeof(res)/sizeof(uint16_t);
-	if(!BILLACCEPTOR_receive_response(&res, 2)){
+	uint16_t code;
+	if(!BILLACCEPTOR_receive_response(&code, 1)){
 		return false;
 	}
-	// Validate checksum
-	if(BILLACCEPTOR_calculate_chk(res, res_size-1) != (uint8_t)res[res_size-1]){
+	if(!BILLACCEPTOR_is_res_ack(code)){
 		return false;
 	}
-	escrow->poll_status = res[0];
+
 	return true;
 }
 
 bool BILLACCEPTOR_stacker(BILLACCEPTOR_Stacker_t * stacker){
+	BILLACCEPTOR_clear_data();
 	// Send command
 	uint16_t cmd[1] = {BILLACCEPTOR_STACKER};
 	BILLACCEPTOR_send_data(cmd, 1);
@@ -188,10 +201,11 @@ bool BILLACCEPTOR_stacker(BILLACCEPTOR_Stacker_t * stacker){
 	if(BILLACCEPTOR_calculate_chk(res, res_size-1) != (uint8_t)res[res_size-1]){
 		return false;
 	}
+	BILLACCEPTOR_send_ack();
 	if((res[0] >> 7)){
 		// Stacker is full
-		stacker->is_full = 0;
-		stacker->number_of_bills = (uint16_t)(res[0] & 0x7F) << 8 | (res[0] & 0xFF);
+		stacker->is_full = 1;
+		stacker->number_of_bills = (uint16_t)(res[0] & 0x7F) << 8 | (res[1] & 0xFF);
 	}else{
 		// Status Type
 		stacker->is_full = 0;
@@ -304,10 +318,18 @@ static bool BILLACCEPTOR_send_data(uint16_t *data , size_t data_len){
 	UART_send(BILLACCEPTOR_UART, tx_buf, tx_len);
 }
 
+static bool BILLACCEPTOR_clear_data(){
+	UART_clear_buffer(BILLACCEPTOR_UART);
+}
+
 static uint8_t BILLACCEPTOR_calculate_chk(uint16_t * data, size_t data_len){
 	uint16_t chk = 0;
 	for (int var = 0; var < data_len; ++var) {
 		chk = chk + data[var];
 	}
 	return (uint8_t)chk;
+}
+static void BILLACCEPTOR_send_ack(){
+	uint16_t ack = 0x0000;
+	UART_send(BILLACCEPTOR_UART, &ack, 1);
 }
