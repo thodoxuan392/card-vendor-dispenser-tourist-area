@@ -78,7 +78,8 @@ static GPIO_info_t gpio_table[] = {
 static const uint8_t offset_line[] = { 0x80u, 0x90u, 0x88u, 0x98u };
 static uint8_t display_control;
 static uint8_t display_function;
-static char lcd_str_buf[LCD_BUFFER_SIZE];
+static uint8_t lcd_str_buf[LCD_BUFFER_SIZE];
+static uint8_t lcd_bitmap_buf[32][32];
 
 /**
  * Section: Private Functions
@@ -86,10 +87,13 @@ static char lcd_str_buf[LCD_BUFFER_SIZE];
 
 static void LCD_begin();
 static void LCD_text_mode();
+static void LCD_graphic_mode();
 static void LCD_home();
 static void LCD_clear();
 static void LCD_no_display();
 static void LCD_display();
+static void LCD_draw_pixel(int8_t x, int8_t y);
+static void LCD_render_bitmap();
 static void LCD_no_blink();
 static void LCD_blink();
 static void LCD_no_cursor();
@@ -110,9 +114,7 @@ bool LCD_init(){
 		HAL_GPIO_Init(gpio_table[var].port, &gpio_table[var].init_info);
 	}
 	LCD_begin();
-	LCD_text_mode();
-	LCD_clear();
-	LCD_set_cursor(4, 0);
+	LCD_graphic_mode();
 	return true;
 }
 
@@ -131,8 +133,27 @@ void LCD_display_str(char * fmt, ...){
 	}
 }
 
+// Fixed size 32x32
+void LCD_draw_bitmap(uint8_t * bitmap_p){
+	LCD_clear_bitmap();
+	uint16_t x,y;
+	for (y = 0; y < 64; y++) {
+		for (x = 0; x < 128; x++) {
+			if (bitmap_p[(y / 8) * 128 + x] & (1 << (y % 8))) {
+				LCD_draw_pixel(x, y);
+			}
+		}
+	}
+	LCD_render_bitmap();
+}
+
+void LCD_clear_bitmap(){
+	memset(lcd_bitmap_buf, 0, sizeof(lcd_bitmap_buf));
+}
+
 bool LCD_test(){
-	LCD_display_str("Hello");
+//	LCD_clear();
+//	LCD_display_str("Hello");
 }
 
 // Internal function
@@ -140,44 +161,42 @@ bool LCD_test(){
 
 static void LCD_begin(){
 
-    display_control = LCD_DISPLAY_ON | LCD_CURSOR_OFF | LCD_BLINK_OFF;
-    display_function = LCD_INTERFACE_8BITS;
+	display_control = LCD_DISPLAY_ON | LCD_CURSOR_OFF | LCD_BLINK_OFF;
+	display_function = LCD_INTERFACE_8BITS;
 
+	LCD_send_command(
+	LCD_FUNCTIONSETEXTENDED | display_function | LCD_GRAPHIC_OFF);
+	LCD_delay(1);
+	LCD_send_command( LCD_FUNCTIONSET | display_function);
+	LCD_delay(1);
 
-    LCD_send_command( LCD_FUNCTIONSETEXTENDED | display_function | LCD_GRAPHIC_OFF );
-    LCD_delay(1);
-    LCD_send_command( LCD_FUNCTIONSET | display_function );
-    LCD_delay(1);
+	LCD_send_command( LCD_DISPLAYCLEAR);
+	LCD_delay(1);
 
-    LCD_send_command( LCD_DISPLAYCLEAR );
-    LCD_delay(1);
+	LCD_send_command(
+	LCD_ENTRYMODE | LCD_CURSOR_MOVE_RIGHT | LCD_DISPLAY_NO_SHIFT);
+	LCD_delay(1);
 
-    LCD_send_command( LCD_ENTRYMODE | LCD_CURSOR_MOVE_RIGHT | LCD_DISPLAY_NO_SHIFT );
-    LCD_delay(1);
+	LCD_send_command( LCD_DISPLAYCONTROL | display_control);
 
-    LCD_send_command( LCD_DISPLAYCONTROL | display_control );
+	LCD_delay_microseconds(160);
 
-    LCD_delay_microseconds(80);
-    LCD_delay_microseconds(80);
+	LCD_send_command(
+	LCD_FUNCTIONSETEXTENDED | display_function | LCD_GRAPHIC_ON);
+	LCD_delay(1);
+	LCD_send_command( LCD_FUNCTIONSCROLLORADDRESSSELECT);
+	LCD_delay(1);
+	for (uint8_t i = 0; i < 32; i++) {
+		LCD_send_command( LCD_SETGRAPHICADDRESS | i); // y
+		LCD_delay(1);
+		LCD_send_command( LCD_SETGRAPHICADDRESS | 0); // x
+		LCD_delay(1);
 
-    LCD_send_command( LCD_FUNCTIONSETEXTENDED | display_function | LCD_GRAPHIC_OFF );
-    LCD_delay(1);
-    LCD_send_command( LCD_FUNCTIONSCROLLORADDRESSSELECT );
-    LCD_delay(1);
-
-	//Clear screen
-    for( uint8_t i = 0; i < 32; i++ ){
-       LCD_send_command( LCD_SETGRAPHICADDRESS | i ); // y
-        LCD_delay(1);
-       LCD_send_command( LCD_SETGRAPHICADDRESS | 0 ); // x
-        LCD_delay(1);
-
-       for( uint8_t j = 0; j < 32; j++ ){
-        LCD_delay(1);
-        LCD_send_data( 0u );
-        }
-    }
-
+		for (uint8_t j = 0; j < 32; j++) {
+			LCD_delay(1);
+			LCD_send_data(0u);
+		}
+	}
 }
 
 
@@ -207,6 +226,15 @@ static void LCD_text_mode( ){
   LCD_delay(50);
 }
 
+static void LCD_graphic_mode() {
+	LCD_send_command(
+	LCD_FUNCTIONSETEXTENDED | LCD_INTERFACE_8BITS | LCD_GRAPHIC_OFF); // functionSetExt with G = 0
+	LCD_delay_microseconds(80);
+	LCD_send_command(
+	LCD_FUNCTIONSETEXTENDED | LCD_INTERFACE_8BITS | LCD_GRAPHIC_ON); // functionSetExt with G = 1
+}
+
+
 static void LCD_clear(){
 	LCD_send_command( LCD_DISPLAYCLEAR );
 }
@@ -225,6 +253,35 @@ static void LCD_no_display(){
 static void LCD_display(){
 	display_control |= (LCD_DISPLAY_ON);
 	LCD_send_command( LCD_DISPLAYCONTROL | display_control );
+}
+
+static void LCD_draw_pixel(int8_t x, int8_t y) {
+	if (y > 63 || y < 0) {
+		return;
+	}
+	if (x / 8 + 16 > 32 || x < 0) {
+		return;
+	}
+	if (y < 32)
+		lcd_bitmap_buf[x / 8][y] |= 1u << (8 - x % 8 - 1);
+	else
+		lcd_bitmap_buf[x / 8 + 16][y - 32] |= 1u << (8 - x % 8 - 1);
+
+}
+
+static void LCD_render_bitmap(){
+	uint8_t startX = 0;
+	uint8_t cantX = 32;
+	for (uint8_t i = 0; i < 32; i++) {  // iterate for 'y' axis
+		LCD_send_command( LCD_SETGRAPHICADDRESS | i); // y
+		LCD_delay_microseconds(80);
+		LCD_send_command( LCD_SETGRAPHICADDRESS | startX); // x
+		for (uint8_t j = 2 * startX; j < cantX; j++) {
+			LCD_delay_microseconds(80);
+			LCD_send_data(lcd_bitmap_buf[j][i]);
+		}
+		LCD_delay_microseconds(40);
+	}
 }
 
 static void LCD_no_blink(){

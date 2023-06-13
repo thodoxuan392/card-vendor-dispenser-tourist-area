@@ -22,6 +22,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "Hal/clock.h"
+#include "Hal/rtc.h"
 #include "Hal/gpio.h"
 #include "Hal/timer.h"
 #include "Hal/i2c.h"
@@ -55,6 +56,13 @@
 
 /* USER CODE END PM */
 
+/* Private variables ---------------------------------------------------------*/
+
+
+/* USER CODE END PV */
+
+/* Private function prototypes -----------------------------------------------*/
+
 
 /* USER CODE END PFP */
 
@@ -81,6 +89,7 @@ int main(void)
   /* USER CODE BEGIN Init */
   // Hal init
   CLOCK_init();
+  RTC_init();
   GPIO_init();
   TIMER_init();
   UART_init();
@@ -99,6 +108,7 @@ int main(void)
   BILLACCEPTORMNG_init();
   TCDMNG_init();
   KEYPADMNG_init();
+  LCDMNG_init();
   // App Init
   MQTT_init();
   COMMANDHANDLER_init();
@@ -106,14 +116,6 @@ int main(void)
   STATUSREPORTER_init();
   STATEMACHINE_init();
   /* USER CODE END Init */
-
-  /* Configure the system clock */
-
-  /* USER CODE BEGIN SysInit */
-
-  /* USER CODE END SysInit */
-
-  /* Initialize all configured peripherals */
   /* USER CODE BEGIN 2 */
   /* USER CODE END 2 */
 
@@ -122,13 +124,14 @@ int main(void)
   while (1)
   {
 	  STATEMACHINE_run();
+
+//	  HAL_Delay(3000);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
 }
-
 /* USER CODE BEGIN 4 */
 
 /* USER CODE END 4 */

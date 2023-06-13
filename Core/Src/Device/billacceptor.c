@@ -121,7 +121,7 @@ bool BILLACCEPTOR_poll(BILLACCEPTOR_Poll_t * poll){
 	uint16_t res[17];
 	size_t expected_res_size = sizeof(res)/sizeof(uint16_t);
 	size_t real_res_size = 0;
-	if(!BILLACCEPTOR_receive_response_timeout(res, expected_res_size, &real_res_size, 100)){
+	if(!BILLACCEPTOR_receive_response_timeout(res, expected_res_size, &real_res_size, 50)){
 		return false;
 	}
 	if(real_res_size == 0){

@@ -23,6 +23,7 @@ bool TCD_loop();
 bool TCD_payout_card(TCD_id_t id , bool enable);
 bool TCD_callback(TCD_id_t id, bool enable);
 bool TCD_reset(TCD_id_t id, bool enable);
+bool TCD_is_out_ok(TCD_id_t id);
 bool TCD_is_error(TCD_id_t id);
 bool TCD_is_lower(TCD_id_t id);
 bool TCD_is_empty(TCD_id_t id);

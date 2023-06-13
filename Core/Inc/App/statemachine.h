@@ -11,6 +11,9 @@
 #include "stdio.h"
 #include "stdbool.h"
 
+#define SM_INIT_DURATION	3000	// 3s
+#define SM_KEYPAD_BUF		128
+
 bool STATEMACHINE_init();
 bool STATEMACHINE_run();
 

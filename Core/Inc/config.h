@@ -11,13 +11,19 @@
 #include "stdio.h"
 #include "stdbool.h"
 
-#define	CFG_BILLACCEPTOR_RESPONSE_TIMEOUT_DFG	100
-#define CFG_STATUS
+#define SETTING_MODE_PASSWORD_MAX_LEN	10
+#ifndef SETTING_MODE_PASSWORD
+	#define SETTING_MODE_PASSWORD	"2341233450"
+#endif
 
 typedef struct {
-	char device_id[20];
+	char password[SETTING_MODE_PASSWORD_MAX_LEN];
 	uint32_t card_price;
 	uint32_t amount;
+	uint32_t total_amount;
+	uint32_t total_card;
+	uint32_t total_card_by_day;
+	uint32_t total_card_by_month;
 }CONFIG_t;
 
 bool CONFIG_init();
