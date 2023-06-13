@@ -50,11 +50,11 @@ static void KEYPADHANDLER_card_prices(uint8_t *data, size_t data_len);
 static void KEYPADHANDLER_time(uint8_t *data, size_t data_len);
 static void KEYPADHANDLER_password(uint8_t *data, size_t data_len);
 static void KEYPADHANDLER_total_card( uint8_t *data, size_t data_len);
-static void KEYPADHANDLER_total_card_by_day( uint8_t *data, size_t data_len);
-static void KEYPADHANDLER_total_card_by_month( uint8_t *data, size_t data_len);
 static void KEYPADHANDLER_delete_total_card( uint8_t *data, size_t data_len);
 static void KEYPADHANDLER_total_amount( uint8_t *data, size_t data_len);
 static void KEYPADHANDLER_delete_total_amount( uint8_t *data, size_t data_len);
+static void KEYPADHANDLER_total_card_by_day( uint8_t *data, size_t data_len);
+static void KEYPADHANDLER_total_card_by_month( uint8_t *data, size_t data_len);
 static uint32_t KEYPADHANDLER_cal_int(uint8_t *data, size_t data_len);
 static void KEYPADHANDLER_int_to_str(uint8_t * str, uint8_t *data, size_t data_len);
 static bool KEYPADHANDLER_check_password_valid(uint8_t *data, size_t data_len, char* password);
@@ -142,12 +142,6 @@ static bool KEYPADHANDLER_execute(uint8_t fn, uint8_t *data, size_t data_len){
 		case FN_TOTAL_CARD:
 			KEYPADHANDLER_total_card(data, data_len);
 			break;
-		case FN_TOTAL_CARD_BY_DAY:
-			KEYPADHANDLER_total_card_by_day(data, data_len);
-			break;
-		case FN_TOTAL_CARD_BY_MONTH:
-			KEYPADHANDLER_total_card_by_month(data, data_len);
-			break;
 		case FN_DELETE_TOTAL_CARD:
 			KEYPADHANDLER_delete_total_card(data, data_len);
 			break;
@@ -209,13 +203,20 @@ static void KEYPADHANDLER_password( uint8_t *data, size_t data_len){
 static void KEYPADHANDLER_total_card( uint8_t *data, size_t data_len){
 	CONFIG_t * config = CONFIG_get();
 	utils_log_info("Total card: %d\r\n",config->total_card);
-	LCDMNG_set_setting_data_screen(FN_TOTAL_CARD, &config->total_card, sizeof(config->total_card));
+	uint32_t total_card[] = {
+		config->total_card,
+		config->total_card_by_day,
+		config->total_card_by_month
+	};
+	LCDMNG_set_setting_data_screen(FN_TOTAL_CARD, total_card, sizeof(total_card));
 }
 
 static void KEYPADHANDLER_delete_total_card( uint8_t *data, size_t data_len){
 	CONFIG_t * config = CONFIG_get();
 	utils_log_info("Delete total card\r\n");
 	config->total_card = 0;
+	config->total_card_by_day = 0;
+	config->total_card_by_month = 0;
 	CONFIG_set(config);
 	LCDMNG_set_setting_data_screen(FN_DELETE_TOTAL_CARD, NULL, 0);
 }
@@ -232,19 +233,6 @@ static void KEYPADHANDLER_delete_total_amount( uint8_t *data, size_t data_len){
 	config->total_amount = 0;
 	CONFIG_set(config);
 	LCDMNG_set_setting_data_screen(FN_DELETE_TOTAL_AMOUNT, NULL, 0);
-}
-
-
-static void KEYPADHANDLER_total_card_by_day( uint8_t *data, size_t data_len){
-	CONFIG_t * config = CONFIG_get();
-	utils_log_info("Total card by day: %d\r\n",config->total_card_by_day);
-	LCDMNG_set_setting_data_screen(FN_TOTAL_CARD_BY_DAY, &config->total_card_by_day, sizeof(config->total_card_by_day));
-}
-
-static void KEYPADHANDLER_total_card_by_month( uint8_t *data, size_t data_len){
-	CONFIG_t * config = CONFIG_get();
-	utils_log_info("Total card by month: %d\r\n",config->total_card_by_month);
-	LCDMNG_set_setting_data_screen(FN_TOTAL_CARD_BY_MONTH, &config->total_card_by_month, sizeof(config->total_card_by_month));
 }
 
 static uint32_t KEYPADHANDLER_cal_int(uint8_t *data, size_t data_len){

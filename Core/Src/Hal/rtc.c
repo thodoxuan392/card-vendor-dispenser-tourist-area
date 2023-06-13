@@ -40,8 +40,8 @@ RTC_t RTC_get_time(){
 	rtc_time.hour = time.Hours%24;
 	rtc_time.minute = time.Minutes%60;
 	rtc_time.second = time.Seconds%60;
-	rtc_time.date = (date.Date)%31;
-	rtc_time.month = (date.Month)%12;
+	rtc_time.date = (date.Date)%31 + 1;
+	rtc_time.month = (date.Month)%12 + 1;
 	rtc_time.year = date.Year + 2000;
 	return rtc_time;
 }

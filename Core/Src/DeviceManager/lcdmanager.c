@@ -793,37 +793,37 @@ static const char* lcdmng_state_name[] = {
 
 static LCDMNG_setting_field_t setting_field_info[] = {
 		[LCDMNG_SETTING_FIELD_DATE_TIME] = {
-			.name = "Gio",
+			.name = "Chinh thoi gian",
 			.x_position = 2,
 			.line_position = 0
 		},
 		[LCDMNG_SETTING_FIELD_CARD_PRICE] = {
-			.name = "Gia",
+			.name = "Gia tien moi the",
 			.x_position = 2,
 			.line_position = 1
 		},
 		[LCDMNG_SETTING_FIELD_PASSWORD] = {
-			.name = "Password",
+			.name = "Thay Password",
 			.x_position = 2,
 			.line_position = 2
 		},
 		[LCDMNG_SETTING_FIELD_TOTAL_CARD] = {
-			.name = "Tong the",
+			.name = "Thong ke the",
 			.x_position = 2,
 			.line_position = 3
 		},
 		[LCDMNG_SETTING_FIELD_DELETE_TOTAL_CARD] = {
-			.name = "Xoa the",
+			.name = "Xoa thong ke",
 			.x_position = 2,
 			.line_position = 4
 		},
 		[LCDMNG_SETTING_FIELD_SUM_OF_AMOUNT] = {
-			.name = "Tong tien",
+			.name = "Tong thu nhap",
 			.x_position = 2,
 			.line_position = 5
 		},
 		[LCDMNG_SETTING_FIELD_DELETE_SUM_OF_AMOUNT] = {
-			.name = "Xoa tien",
+			.name = "Xoa thu nhap",
 			.x_position = 2,
 			.line_position = 6
 		}
@@ -1036,46 +1036,53 @@ void LCDMNG_set_setting_data_screen(uint32_t field_id, void * data, size_t data_
 	LCDMNG_draw_string(setting_data_screen, 0,0, field_buf);
 
 	uint8_t test;
-	if(data){
-		char data_buf[20];
-		if(field_id == LCDMNG_SETTING_FIELD_DATE_TIME){
-			RTC_t *rtc = (RTC_t *) data;
-			snprintf(data_buf, sizeof(data_buf), "%02d:%02d %02d/%02d/%04d", rtc->hour,
-																			rtc->minute,
-																			rtc->date,
-																			rtc->month,
-																			rtc->year);
-
-		}
-		else if(field_id == LCDMNG_SETTING_FIELD_CARD_PRICE){
-			uint32_t card_prices;
-			card_prices = *(uint32_t*)data;
-			snprintf(data_buf, sizeof(data_buf), "%d", card_prices);
-		}
-		else if(field_id == LCDMNG_SETTING_FIELD_PASSWORD){
-			char * password = (char*) data;
-			snprintf(data_buf, sizeof(data_buf), "%s", password);
-		}
-		else if(field_id == LCDMNG_SETTING_FIELD_TOTAL_CARD){
-			uint32_t total_card;
-			total_card = *(uint32_t*)data;
-			snprintf(data_buf, sizeof(data_buf), "%d", total_card);
-		}
-		else if(field_id == LCDMNG_SETTING_FIELD_DELETE_TOTAL_CARD){
-			snprintf(data_buf, sizeof(data_buf), "Deleted total card");
-		}
-		else if(field_id == LCDMNG_SETTING_FIELD_SUM_OF_AMOUNT){
-			uint32_t sum_of_amount;
-			sum_of_amount = *(uint32_t*)data;
-			snprintf(data_buf, sizeof(data_buf), "%d", sum_of_amount);
-		}
-		else if(field_id == LCDMNG_SETTING_FIELD_DELETE_SUM_OF_AMOUNT){
-			snprintf(data_buf, sizeof(data_buf), "Deleted sum of amount");
-		}
-		LCDMNG_set_font(font5x7);
+	char data_buf[20];
+	if(field_id == LCDMNG_SETTING_FIELD_DATE_TIME){
+		RTC_t *rtc = (RTC_t *) data;
+		snprintf(data_buf, sizeof(data_buf), "%02d:%02d %02d/%02d/%04d", rtc->hour,
+																		rtc->minute,
+																		rtc->date,
+																		rtc->month,
+																		rtc->year);
 		LCDMNG_draw_string(setting_data_screen, SETTING_SCREEN_DATA_X_POSITION, SETTING_SCREEN_DATA_LINE_POSITION, data_buf);
 	}
-
+	else if(field_id == LCDMNG_SETTING_FIELD_CARD_PRICE){
+		uint32_t card_prices;
+		card_prices = *(uint32_t*)data;
+		snprintf(data_buf, sizeof(data_buf), "%d", card_prices);
+		LCDMNG_draw_string(setting_data_screen, SETTING_SCREEN_DATA_X_POSITION, SETTING_SCREEN_DATA_LINE_POSITION, data_buf);
+	}
+	else if(field_id == LCDMNG_SETTING_FIELD_PASSWORD){
+		char * password = (char*) data;
+		snprintf(data_buf, sizeof(data_buf), "%s", password);
+		LCDMNG_draw_string(setting_data_screen, SETTING_SCREEN_DATA_X_POSITION, SETTING_SCREEN_DATA_LINE_POSITION, data_buf);
+	}
+	else if(field_id == LCDMNG_SETTING_FIELD_TOTAL_CARD){
+		uint32_t total_card[3];
+		memccpy(total_card, data, sizeof(total_card));
+		snprintf(data_buf, sizeof(data_buf), "Hom nay ban %d the", total_card[1]);
+		LCDMNG_draw_string(setting_data_screen, SETTING_SCREEN_DATA_X_POSITION - 5, SETTING_SCREEN_DATA_LINE_POSITION -1, data_buf);
+		snprintf(data_buf, sizeof(data_buf), "Thang nay   %d", total_card[2]);
+		LCDMNG_draw_string(setting_data_screen, SETTING_SCREEN_DATA_X_POSITION - 5 , SETTING_SCREEN_DATA_LINE_POSITION+1, data_buf);
+		snprintf(data_buf, sizeof(data_buf), "Tat ca      %d", total_card[0]);
+		LCDMNG_draw_string(setting_data_screen, SETTING_SCREEN_DATA_X_POSITION - 5, SETTING_SCREEN_DATA_LINE_POSITION+3, data_buf);
+	}
+	else if(field_id == LCDMNG_SETTING_FIELD_DELETE_TOTAL_CARD){
+		snprintf(data_buf, sizeof(data_buf), "   Da xoa the!");
+		LCDMNG_draw_string(setting_data_screen, SETTING_SCREEN_DATA_X_POSITION, SETTING_SCREEN_DATA_LINE_POSITION, data_buf);
+	}
+	else if(field_id == LCDMNG_SETTING_FIELD_SUM_OF_AMOUNT){
+		uint32_t sum_of_amount;
+		sum_of_amount = *(uint32_t*)data;
+		LCDMNG_draw_string(setting_data_screen, SETTING_SCREEN_DATA_X_POSITION, SETTING_SCREEN_DATA_LINE_POSITION -1, "Tong thu nhap");
+		snprintf(data_buf, sizeof(data_buf), "%d", sum_of_amount);
+		LCDMNG_draw_string(setting_data_screen, SETTING_SCREEN_DATA_X_POSITION, SETTING_SCREEN_DATA_LINE_POSITION + 1, data_buf);
+	}
+	else if(field_id == LCDMNG_SETTING_FIELD_DELETE_SUM_OF_AMOUNT){
+		snprintf(data_buf, sizeof(data_buf), "  Da xoa thu nhap!");
+		LCDMNG_draw_string(setting_data_screen, SETTING_SCREEN_DATA_X_POSITION, SETTING_SCREEN_DATA_LINE_POSITION, data_buf);
+	}
+//		LCDMNG_draw_string(setting_data_screen, SETTING_SCREEN_DATA_X_POSITION, SETTING_SCREEN_DATA_LINE_POSITION, data_buf);
 	// Do nothing with argument
 	LCD_draw_bitmap(setting_data_screen);
 	state = LCDMNG_STATE_SETTING_DATA;
