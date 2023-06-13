@@ -30,8 +30,11 @@ void TCDMNG_init();
 void TCDMNG_run();
 TCDMNG_Status_t TCDMNG_get_status();
 uint8_t TCDMNG_get_state();
+bool TCDMNG_is_idle();
+bool TCDMNG_is_in_processing();
 void TCDMNG_reset();
 void TCDMNG_payout();
 void TCDMNG_callback();
+bool TCDMNG_is_error();
 
 #endif /* INC_DEVICEMANAGER_TCDMANAGER_H_ */

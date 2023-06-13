@@ -67,7 +67,7 @@ static netif_mqtt_client_t mqtt_client = {
 void MQTT_init(){
 	char topic_temp[TOPIC_MAX_LEN];
 	CONFIG_t* config = CONFIG_get();
-	char * deviceId = config->device_id;
+	char * deviceId = "test";
 	// Init Client ID
 	snprintf(client_id, CLIENTID_MAX_LEN,"CD_%s", deviceId);
 	mqtt_client.client_id = client_id;

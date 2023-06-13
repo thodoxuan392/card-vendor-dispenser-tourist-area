@@ -13,6 +13,7 @@
 
 
 bool STATUSREPORTER_init();
+bool STATUSREPORTER_run();
 void STATUSREPORTER_amount_remain(uint32_t amount);
 
 #endif /* INC_APP_STATUSREPORTER_H_ */
