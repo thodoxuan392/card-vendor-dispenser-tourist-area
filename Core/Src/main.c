@@ -55,14 +55,7 @@
 /* USER CODE BEGIN PM */
 
 /* USER CODE END PM */
-
-/* Private variables ---------------------------------------------------------*/
-
-
-/* USER CODE END PV */
-
-/* Private function prototypes -----------------------------------------------*/
-
+/* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
@@ -132,6 +125,7 @@ int main(void)
   }
   /* USER CODE END 3 */
 }
+
 /* USER CODE BEGIN 4 */
 
 /* USER CODE END 4 */

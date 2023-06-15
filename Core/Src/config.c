@@ -26,10 +26,9 @@ static bool CONFIG_set_default(CONFIG_t * config,  CONFIG_t *config_temp);
 static bool CONFIG_field_is_empty(uint8_t *data, size_t data_len);
 
 bool CONFIG_init(){
-//	CONFIG_clear();
-//	CONFIG_t temp;
-//	EEPROM_read(EEPROM_CONFIG_ADDRESS, (uint8_t*)&temp, sizeof(CONFIG_t));
-//	CONFIG_set_default(&config, &temp);
+	CONFIG_t temp;
+	EEPROM_read(EEPROM_CONFIG_ADDRESS, (uint8_t*)&temp, sizeof(CONFIG_t));
+	CONFIG_set_default(&config, &temp);
 	utils_log_info("CONFIG init done\r\n");
 	CONFIG_printf();
 }
@@ -39,9 +38,7 @@ CONFIG_t * CONFIG_get(){
 }
 
 void CONFIG_set(CONFIG_t * _config){
-	CONFIG_t temp;
-	memcpy(&temp , _config, sizeof(CONFIG_t));
-	memcpy(&config, &temp, sizeof(CONFIG_t));
+	memcpy(&config, _config, sizeof(CONFIG_t));
 	EEPROM_write(EEPROM_CONFIG_ADDRESS, &config, sizeof(CONFIG_t));
 	CONFIG_printf();
 }

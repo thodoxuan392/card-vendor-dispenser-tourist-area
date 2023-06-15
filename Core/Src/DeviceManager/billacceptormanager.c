@@ -42,7 +42,7 @@ static bool is_accepted = false;
 static uint8_t bill_routing;
 static uint8_t bill_type_accepted;
 static uint32_t amount = 0;
-static BILLACCEPTOR_BillType_t billtype = {
+static BILLACCEPTOR_BillType_t billtype_default = {
 	.bill_enable = 0b0000000111111110,
 	.bill_escrow_enable = 0b0000000111111110
 };
@@ -94,7 +94,7 @@ static void BILLACCEPTORMNG_idle();
 static void BILLACCEPTORMNG_have_bill();
 static void BILLACCEPTORMNG_status();
 static void BILLACCEPTORMNG_timeout();
-static void BILLACCEPTOR_save_amount_to_eeprom(uint32_t amount);
+static void BILLACCEPTOR_save_amount_to_eeprom(uint32_t amount, uint32_t _total_amount);
 
 bool BILLACCEPTORMNG_init(){
 	CONFIG_t * config = CONFIG_get();
@@ -105,7 +105,7 @@ bool BILLACCEPTORMNG_init(){
 	BILLACCEPTOR_Setup_t setup;
 	BILLACCEPTOR_setup(&setup);
 	BILLACCEPTOR_security(&security);
-	BILLACCEPTOR_billtype(&billtype);
+	BILLACCEPTOR_billtype(&billtype_default);
 
 }
 
@@ -133,6 +133,18 @@ uint8_t BILLACCEPTORMNG_get_status(){
 	return billacceptor_status;
 }
 
+void BILLACCEPTORMNG_disable(){
+	BILLACCEPTOR_BillType_t billtype = {
+		.bill_enable = 0x00,
+		.bill_enable = 0x00
+	};
+	BILLACCEPTOR_billtype(&billtype);
+}
+
+void BILLACCEPTORMNG_enable(){
+	BILLACCEPTOR_billtype(&billtype_default);
+}
+
 bool BILLACCEPTORMNG_is_error(){
 	return (billacceptor_status != STATUS_SUCCESS);
 }
@@ -150,8 +162,9 @@ uint32_t BILLACCEPTORMNG_get_amount(){
 }
 
 void BILLACCEPTORMNG_set_amount(uint32_t _amount){
+	CONFIG_t *config = CONFIG_get();
 	amount = _amount;
-	BILLACCEPTOR_save_amount_to_eeprom(amount);
+	BILLACCEPTOR_save_amount_to_eeprom(amount, config->total_amount);
 }
 
 void BILLACCEPTORMNG_test(){
@@ -186,13 +199,16 @@ static void BILLACCEPTORMNG_idle(){
 }
 
 static void BILLACCEPTORMNG_have_bill(){
+	CONFIG_t * config = CONFIG_get();
 	switch (bill_routing) {
 		case BILL_STACKED:
 			is_accepted = true;
 			// Calculate Bill Value and add it to amount
 			amount += bill_mapping[bill_type_accepted];
+			// Update total amount
+			config->total_amount += bill_mapping[bill_type_accepted];
 			// Save it to EEPROM
-			BILLACCEPTOR_save_amount_to_eeprom(amount);
+			BILLACCEPTOR_save_amount_to_eeprom(amount, config->total_amount);
 			// LCD display Bill detected and Bill value
 			utils_log_info("Bill %d accepted\r\n", bill_mapping[bill_type_accepted]);
 			utils_log_info("Amount %d\r\n", amount);
@@ -227,9 +243,10 @@ static void BILLACCEPTORMNG_timeout(){
 	timeout = true;
 }
 
-static void BILLACCEPTOR_save_amount_to_eeprom(uint32_t _amount){
+static void BILLACCEPTOR_save_amount_to_eeprom(uint32_t _amount, uint32_t _total_amount){
 	CONFIG_t * config = CONFIG_get();
 	config->amount = _amount;
+	config->total_amount = _total_amount;
 	CONFIG_set(config);
 }
 

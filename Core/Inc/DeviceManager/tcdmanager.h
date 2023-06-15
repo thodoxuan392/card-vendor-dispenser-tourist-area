@@ -36,5 +36,10 @@ void TCDMNG_reset();
 void TCDMNG_payout();
 void TCDMNG_callback();
 bool TCDMNG_is_error();
+bool TCDMNG_is_lower();
+bool TCDMNG_is_empty();
+bool TCDMNG_is_available_for_use();
+
+
 
 #endif /* INC_DEVICEMANAGER_TCDMANAGER_H_ */

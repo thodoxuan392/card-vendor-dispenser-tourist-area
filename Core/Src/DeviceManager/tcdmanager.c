@@ -95,7 +95,6 @@ static void TCDMNG_wait_for_updating_status();
 static void TCDMNG_error();
 static void TCDMNG_update_status();
 static bool TCDMNG_is_available(TCD_id_t tcd);
-static bool TCDMNG_is_lower(TCD_id_t tcd);
 static void TCDMNG_timeout();
 static void TCDMNG_timeout_for_init();
 static void TCDMNG_printf();
@@ -182,8 +181,34 @@ void TCDMNG_callback(){
 
 bool TCDMNG_is_error(){
 	TCDMNG_update_status();
-	return (status.TCD_1.is_error || status.TCD_1.is_empty) &&
-			(status.TCD_2.is_error || status.TCD_2.is_empty);
+	return (status.TCD_1.is_error) &&
+			(status.TCD_2.is_error);
+}
+
+bool TCDMNG_is_lower(){
+	TCDMNG_update_status();
+	return (status.TCD_1.is_lower && status.TCD_2.is_lower);
+}
+
+bool TCDMNG_is_empty(){
+	TCDMNG_update_status();
+	return (status.TCD_1.is_empty && status.TCD_2.is_empty);
+}
+
+bool TCDMNG_is_available_for_use(){
+	return (TCDMNG_is_available(TCD_1) || TCDMNG_is_available(2));
+}
+
+
+static bool TCDMNG_is_available(TCD_id_t tcd){
+	TCDMNG_update_status();
+	if(tcd == TCD_1){
+		return (!status.TCD_1.is_empty &&
+				!status.TCD_1.is_error);
+	}else {
+		return (!status.TCD_2.is_empty &&
+				!status.TCD_2.is_error);
+	}
 }
 
 static void TCDMNG_wait_for_init(){
@@ -235,8 +260,8 @@ static void TCDMNG_wait_for_reseting(){
 
 static void TCDMNG_payouting(){
 	// Check what TCD is available for payout
-	if((TCDMNG_is_available(TCD_1) && !TCDMNG_is_lower(TCD_1))
-		|| (TCDMNG_is_available(TCD_1) && TCDMNG_is_lower(TCD_1) && TCDMNG_is_lower(TCD_2))){
+	if((TCDMNG_is_available(TCD_1) && !TCD_is_lower(TCD_1))
+		|| (TCDMNG_is_available(TCD_1) && TCD_is_lower(TCD_1) && TCD_is_lower(TCD_2))){
 		tcd_using = TCD_1;
 		TCD_payout_card(TCD_1, true);
 		// How long to enable payout signal
@@ -253,12 +278,6 @@ static void TCDMNG_payouting(){
 		timeout_flag = false;
 		task_id = SCH_Add_Task(TCDMNG_timeout, PAYOUT_DURATION, 0);
 		tcdmng_state = TCDMNG_WAIT_FOR_PAYOUTING;
-	}
-	else{
-		SCH_Delete_Task(task_id);
-		timeout_flag = false;
-		task_id = SCH_Add_Task(TCDMNG_timeout, ERROR_CHECK_INTERVAL, 0);
-		tcdmng_state = TCDMNG_ERROR;
 	}
 }
 
@@ -300,7 +319,7 @@ static void TCDMNG_wait_for_taking_card(){
 	if(!TCD_is_out_ok(tcd_using)){
 		SCH_Delete_Task(task_id);
 		timeout_flag = false;
-		if(TCDMNG_is_lower(tcd_using)){
+		if(TCD_is_lower(tcd_using)){
 			updating_status_time = UPDATING_STATUS_TIME_WHEN_LOWER;
 		}else{
 			updating_status_time = UPDATING_STATUS_TIME_WHEN_NORMAL;
@@ -378,22 +397,6 @@ static void TCDMNG_update_status(){
 	status.TCD_2.is_lower = TCD_is_lower(TCD_2);
 }
 
-
-static bool TCDMNG_is_lower(TCD_id_t id){
-	return TCD_is_lower(id);
-}
-
-
-static bool TCDMNG_is_available(TCD_id_t tcd){
-	TCDMNG_update_status();
-	if(tcd == TCD_1){
-		return (!status.TCD_1.is_empty &&
-				!status.TCD_1.is_error);
-	}else {
-		return (!status.TCD_2.is_empty &&
-				!status.TCD_2.is_error);
-	}
-}
 
 static void TCDMNG_timeout(){
 	timeout_flag = true;

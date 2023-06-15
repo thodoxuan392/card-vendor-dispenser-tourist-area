@@ -12,6 +12,7 @@
 #include "stdbool.h"
 
 #define SM_INIT_DURATION	3000	// 3s
+#define SM_CHECK_CARD_STATUS_INTERVAL	5000 // 2s
 #define SM_KEYPAD_BUF		128
 
 bool STATEMACHINE_init();

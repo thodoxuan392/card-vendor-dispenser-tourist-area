@@ -37,11 +37,11 @@ RTC_t RTC_get_time(){
 	if(HAL_RTC_GetDate(&hrtc, &date, RTC_FORMAT_BIN)){
 		Error_Handler();
 	}
-	rtc_time.hour = time.Hours%24;
-	rtc_time.minute = time.Minutes%60;
-	rtc_time.second = time.Seconds%60;
-	rtc_time.date = (date.Date)%31 + 1;
-	rtc_time.month = (date.Month)%12 + 1;
+	rtc_time.hour = time.Hours;
+	rtc_time.minute = time.Minutes;
+	rtc_time.second = time.Seconds;
+	rtc_time.date = date.Date;
+	rtc_time.month = date.Month;
 	rtc_time.year = date.Year + 2000;
 	return rtc_time;
 }

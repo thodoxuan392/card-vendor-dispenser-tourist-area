@@ -29,6 +29,10 @@ void LCDMNG_set_working_screen(RTC_t * rtc, uint32_t amount);
 void LCDMNG_set_processing_screen();
 void LCDMNG_set_setting_screen();
 void LCDMNG_set_setting_data_screen(uint32_t setting_field_data, void * data, size_t data_len);
+void LCDMNG_set_card_lower();
+void LCDMNG_set_card_empty();
+void LCDMNG_clear_card_lower();
+void LCDMNG_clear_card_empty();
 void LCDMNG_set_idle_screen();
 void LCDMNG_test();
 
