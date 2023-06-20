@@ -7,9 +7,9 @@
 
 #include "main.h"
 #include "DeviceManager/lcdmanager.h"
+#include "Device/rtc.h"
 #include "Lib/scheduler/scheduler.h"
 #include "Lib/utils/utils_logger.h"
-#include "Hal/rtc.h"
 
 
 #define LCDMNG_WIDTH				128
@@ -17,12 +17,17 @@
 #define SCREEN_SIZE					128 * 64 / 8
 #define INIT_SCREEN_DURATION		3000	// 3s
 #define WELCOME_SCREEN_DURATION		3000 	// 3s
-#define WORKING_SCREEN_DURATION		30000 	// 10s
-#define PROCESSING_SCREEN_DURATION	2000 	// 10s
-#define IDLE_SCREEN_DURATION		2000 	// 10s
-#define CARD_LOWER_SCREEN_DURATION	5000 	// 10s
-#define CARD_EMPTY_SCREEN_DURATION	5000 	// 10s
-#define CARD_ERROR_SCREEN_DURATION	5000 	// 10s
+#define WORKING_SCREEN_DURATION		30000 	// 30s
+#define WORKING_SCREEN_DURATION_WHEN_LOWER_CARD		5000 	// 5s
+#define WORKING_SCREEN_DURATION_WHEN_EMPTY_CARD		5000 	// 5s
+#define WORKING_SCREEN_DURATION_WHEN_ERROR_CARD		5000 	// 5s
+
+#define PROCESSING_SCREEN_DURATION	2000 	// 2s
+#define IDLE_SCREEN_DURATION		2000 	// 2s
+#define PASSWORD_SCREEN_DURATION	15000	// 15s
+#define CARD_LOWER_SCREEN_DURATION	5000 	// 5s
+#define CARD_EMPTY_SCREEN_DURATION	5000 	// 5s
+#define CARD_ERROR_SCREEN_DURATION	5000 	// 5s
 
 
 #define WORKING_SCREEN_DATE_X_POSITION				67
@@ -32,10 +37,17 @@
 #define WORKING_SCREEN_AMOUNT_X_POSITION 			72
 #define WORKING_SCREEN_AMOUNT_LINE_POSITION			6
 
+#define PASSWORD_SCREEN_X_POSITION					40
+#define PASSWORD_SCREEN_LINE_POSITION				0
+#define PASSWORD_DATA_SCREEN_X_POSITION				0
+#define PASSWORD_DATA_SCREEN_LINE_POSITION			3
+
 #define SETTING_SCREEN_FIELD_DATA_X_POSITION				6
 #define SETTING_SCREEN_FIELD_DATA_LINE_POSITION				6
 #define SETTING_SCREEN_DATA_X_POSITION						6
 #define SETTING_SCREEN_DATA_LINE_POSITION					3
+
+#define BLINK_INTERVAL								1000
 
 
 enum {
@@ -44,8 +56,7 @@ enum {
 	LCDMNG_STATE_WELCOME,
 	LCDMNG_STATE_WAIT_FOR_WELCOME,
 	LCDMNG_STATE_WORKING,
-	LCDMNG_STATE_PROCESSING,
-	LCDMNG_STATE_WAIT_FOR_PROCESSING,
+	LCDMNG_STATE_PASSWORD,
 	LCDMNG_STATE_SETTING,
 	LCDMNG_STATE_SETTING_DATA,
 	LCDMNG_STATE_CARD_LOWER,
@@ -66,16 +77,19 @@ static void LCDMNG_state_wait_for_init();
 static void LCDMNG_state_welcome();
 static void LCDMNG_state_wait_for_welcome();
 static void LCDMNG_state_working();
-static void LCDMNG_state_processing();
-static void LCDMNG_state_wait_for_processing();
+static void LCDMNG_state_password();
 static void LCDMNG_state_setting();
 static void LCDMNG_state_setting_data();
 static void LCDMNG_state_card_lower();
 static void LCDMNG_state_card_empty();
 static void LCDMNG_state_card_error();
 static void LCDMNG_state_idle();
+static void LCDMNG_run_blink();
+static void LCDMNG_blink();
+static void LCDMNG_set_blink(size_t x_position, size_t line_position);
+static void LCDMNG_clear_blink();
 static void LCDMNG_timeout();
-static void LCDMNG_timeout_for_idle();
+static void LCDMNG_timeout_for_blink();
 static void LCDMNG_printf();
 static void LCDMNG_draw_string(uint8_t *buff, uint8_t x, uint8_t line, uint8_t *c);
 static void LCDMNG_set_font(uint8_t *fontPtr);
@@ -476,7 +490,7 @@ static const uint8_t processing_screen[] = {
 				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
-
+static uint8_t password_screen[1024];
 static uint8_t setting_screen[1024];
 static uint8_t setting_data_screen[1024];
 static uint8_t card_lower_screen[1024] = {
@@ -810,6 +824,15 @@ static const uint8_t font5x7[] = {
 		0x08, 0x1C, 0x2A, 0x08, 0x08 // <-
 };
 
+
+static const uint8_t black7x15 = {
+		0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+		0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
+};
+static const uint8_t white7x15 = {
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
 static const uint8_t font7x15[] = {
 		0x0,
 		0x0,	// size of zero indicates fixed width font
@@ -1005,7 +1028,8 @@ static const uint8_t font15x31[] = {
 };
 
 
-static uint8_t * font;
+static uint8_t* font;
+static uint8_t* curr_screen;
 
 static uint8_t prev_state = LCDMNG_STATE_INIT;
 static uint8_t state = LCDMNG_STATE_INIT;
@@ -1015,8 +1039,7 @@ static const char* lcdmng_state_name[] = {
 		[LCDMNG_STATE_WELCOME] = "LCDMNG_STATE_WELCOME\r\n",
 		[LCDMNG_STATE_WAIT_FOR_WELCOME] = "LCDMNG_STATE_WAIT_FOR_WELCOME\r\n",
 		[LCDMNG_STATE_WORKING] = "LCDMNG_STATE_WORKING\r\n",
-		[LCDMNG_STATE_PROCESSING] = "LCDMNG_STATE_PROCESSING\r\n",
-		[LCDMNG_STATE_WAIT_FOR_PROCESSING] = "LCDMNG_STATE_WAIT_FOR_PROCESSING\r\n",
+		[LCDMNG_STATE_PASSWORD] = "LCDMNG_STATE_PASSWORD\r\n",
 		[LCDMNG_STATE_SETTING] = "LCDMNG_STATE_SETTING\r\n",
 		[LCDMNG_STATE_SETTING_DATA] = "LCDMNG_STATE_SETTING_DATA\r\n",
 		[LCDMNG_STATE_CARD_LOWER] = "LCDMNG_STATE_CARD_LOWER\r\n",
@@ -1051,23 +1074,47 @@ static LCDMNG_setting_field_t setting_field_info[] = {
 			.x_position = 2,
 			.line_position = 4
 		},
-		[LCDMNG_SETTING_FIELD_SUM_OF_AMOUNT] = {
+		[LCDMNG_SETTING_FIELD_TOTAL_AMOUNT] = {
 			.name = "Tong thu nhap",
 			.x_position = 2,
 			.line_position = 5
 		},
-		[LCDMNG_SETTING_FIELD_DELETE_SUM_OF_AMOUNT] = {
+		[LCDMNG_SETTING_FIELD_DELETE_TOTAL_AMOUNT] = {
 			.name = "Xoa thu nhap",
 			.x_position = 2,
 			.line_position = 6
 		}
 };
+static const char * SAVE_CHECK = 	"   Luu thay doi ?  ";
+static const char * SAVED		= 	"       Da luu     ";
+static const char * DELETED_CHECK = "  Ban co muon xoa ?";
+static const char * DELETED		= 	"       Da xoa     ";
+
+static uint32_t timeout_task_id;
+
+// For blink
 static bool timeout = false;
-static bool timeout_for_idle = false;
-static uint8_t setting_field_data = 0;
-static bool card_lower = false;
-static bool card_empty = false;
-static bool card_error = false;
+static bool timeout_for_blink = false;
+static size_t blink_x_position;
+static size_t blink_line_position;
+static bool blink_enable = false;
+
+// For screen
+static bool password_enable = false;
+static bool setting_enable = false;
+static bool setting_data_enable = false;
+static bool card_lower_enable = false;
+static bool card_empty_enable = false;
+static bool card_error_enable = false;
+static bool idle_enable = true;
+
+static void LCDMNG_setting_data_time(void * data, size_t data_len, uint8_t state);
+static void LCDMNG_setting_data_card_price(void * data, size_t data_len, uint8_t state);
+static void LCDMNG_setting_data_password(void * data, size_t data_len, uint8_t state);
+static void LCDMNG_setting_data_total_card(void * data, size_t data_len, uint8_t state);
+static void LCDMNG_setting_data_delete_total_card(void * data, size_t data_len, uint8_t state);
+static void LCDMNG_setting_data_total_amount(void * data, size_t data_len, uint8_t state);
+static void LCDMNG_setting_data_delete_total_amount(void * data, size_t data_len, uint8_t state);
 
 void LCDMNG_init(){
 	// Do nothing
@@ -1077,6 +1124,7 @@ void LCDMNG_init(){
 }
 
 void LCDMNG_run(){
+	LCDMNG_run_blink();
 	switch (state) {
 		case LCDMNG_STATE_INIT:
 			LCDMNG_state_init();
@@ -1093,11 +1141,8 @@ void LCDMNG_run(){
 		case LCDMNG_STATE_WORKING:
 			LCDMNG_state_working();
 			break;
-		case LCDMNG_STATE_PROCESSING:
-			LCDMNG_state_processing();
-			break;
-		case LCDMNG_STATE_WAIT_FOR_PROCESSING:
-			LCDMNG_state_wait_for_processing();
+		case LCDMNG_STATE_PASSWORD:
+			LCDMNG_state_password();
 			break;
 		case LCDMNG_STATE_SETTING:
 			LCDMNG_state_setting();
@@ -1111,6 +1156,9 @@ void LCDMNG_run(){
 		case LCDMNG_STATE_CARD_EMPTY:
 			LCDMNG_state_card_empty();
 			break;
+		case LCDMNG_STATE_CARD_ERROR:
+			LCDMNG_state_card_error();
+			break;
 		case LCDMNG_STATE_IDLE:
 			LCDMNG_state_idle();
 			break;
@@ -1123,7 +1171,7 @@ void LCDMNG_run(){
 
 static void LCDMNG_state_init(){
 	LCD_draw_bitmap(logo_screen);
-	SCH_Add_Task(LCDMNG_timeout, INIT_SCREEN_DURATION, 0);
+	timeout_task_id = SCH_Add_Task(LCDMNG_timeout, INIT_SCREEN_DURATION, 0);
 	state = LCDMNG_STATE_WAIT_FOR_INIT;
 }
 
@@ -1136,69 +1184,112 @@ static void LCDMNG_state_wait_for_init(){
 static void LCDMNG_state_welcome(){
 	LCD_draw_bitmap(welcome_screen);
 	timeout = false;
-	SCH_Add_Task(LCDMNG_timeout, WELCOME_SCREEN_DURATION, 0);
+	timeout_task_id = SCH_Add_Task(LCDMNG_timeout, WELCOME_SCREEN_DURATION, 0);
 	state = LCDMNG_STATE_WAIT_FOR_WELCOME;
 }
 
 static void LCDMNG_state_wait_for_welcome(){
 	if(timeout){
+		timeout = false;
+		LCD_draw_bitmap(working_screen_temp);
+		timeout_task_id = SCH_Add_Task(LCDMNG_timeout, WORKING_SCREEN_DURATION, 0);
 		state = LCDMNG_STATE_WORKING;
 	}
 }
 
 static void LCDMNG_state_working(){
-	if(timeout){
+	// Switch immediately
+	if(password_enable){
+		curr_screen = password_screen;
+		// Donot create timeout -> Only switch again when press exit
+		LCD_draw_bitmap(password_screen);
+		state = LCDMNG_STATE_PASSWORD;
+	}
+	else if(timeout){
 		timeout = false;
-		if(card_error){
+		if(card_error_enable){
+			curr_screen = card_error_screen;
 			LCD_draw_bitmap(card_error_screen);
-			SCH_Add_Task(LCDMNG_timeout, CARD_ERROR_SCREEN_DURATION, 0);
+			timeout_task_id = SCH_Add_Task(LCDMNG_timeout, CARD_ERROR_SCREEN_DURATION, 0);
 			state = LCDMNG_STATE_CARD_ERROR;
 		}
-		else if(card_empty){
+		else if(card_empty_enable){
+			curr_screen = card_empty_screen;
 			LCD_draw_bitmap(card_empty_screen);
-			SCH_Add_Task(LCDMNG_timeout, CARD_EMPTY_SCREEN_DURATION, 0);
+			timeout_task_id = SCH_Add_Task(LCDMNG_timeout, CARD_EMPTY_SCREEN_DURATION, 0);
 			state = LCDMNG_STATE_CARD_EMPTY;
 		}
-		else if(card_lower){
+		else if(card_lower_enable){
+			curr_screen = card_lower_screen;
 			LCD_draw_bitmap(card_lower_screen);
-			SCH_Add_Task(LCDMNG_timeout, CARD_LOWER_SCREEN_DURATION, 0);
+			timeout_task_id = SCH_Add_Task(LCDMNG_timeout, CARD_LOWER_SCREEN_DURATION, 0);
 			state = LCDMNG_STATE_CARD_LOWER;
-		}else {
+		}else if(idle_enable){
 			LCD_draw_bitmap(logo_screen);
-			SCH_Add_Task(LCDMNG_timeout, IDLE_SCREEN_DURATION, 0);
+			timeout_task_id = SCH_Add_Task(LCDMNG_timeout, IDLE_SCREEN_DURATION, 0);
 			state = LCDMNG_STATE_IDLE;
 		}
 	}
 }
 
-static void LCDMNG_state_processing(){
-	LCD_draw_bitmap(processing_screen);
-	state = LCDMNG_STATE_WAIT_FOR_PROCESSING;
-	timeout = false;
-	SCH_Add_Task(LCDMNG_timeout, WORKING_SCREEN_DURATION, 0);
-}
-
-static void LCDMNG_state_wait_for_processing(){
-	if(timeout){
+static void LCDMNG_state_password(){
+	if(setting_enable){
+		curr_screen = setting_screen;
+		// Donot create timeout -> Only switch again when press exit
+		LCD_draw_bitmap(setting_screen);
+		state = LCDMNG_STATE_SETTING;
+	}
+	if(!password_enable || timeout){
+		curr_screen = working_screen_temp;
+		password_enable = false;
+		// Switch to Working screen
+		timeout = false;
+		LCD_draw_bitmap(working_screen_temp);
+		SCH_Delete_Task(timeout_task_id);
+		timeout_task_id = SCH_Add_Task(LCDMNG_timeout, WORKING_SCREEN_DURATION, 0);
 		state = LCDMNG_STATE_WORKING;
 	}
 }
 
 static void LCDMNG_state_setting(){
-
+	// Only get out of this screen when setting is false <=> press exit
+	if(!setting_enable){
+		curr_screen = working_screen_temp;
+		// Disable password screen too
+		password_enable = false;
+		// Switch to Working screen
+		timeout = false;
+		LCD_draw_bitmap(working_screen_temp);
+		SCH_Delete_Task(timeout_task_id);
+		timeout_task_id = SCH_Add_Task(LCDMNG_timeout, WORKING_SCREEN_DURATION, 0);
+		state = LCDMNG_STATE_WORKING;
+	}
+	if(setting_data_enable){
+		curr_screen = setting_data_screen;
+		// Switch to Working screen
+		LCD_draw_bitmap(setting_data_screen);
+		state = LCDMNG_STATE_SETTING_DATA;
+	}
 }
 
 static void LCDMNG_state_setting_data(){
-
+	// Switch back to setting screen when setting_data is false <=> press exti
+	if(!setting_data_enable){
+		curr_screen = setting_screen;
+		// Switch to Working screen
+		LCD_draw_bitmap(setting_screen);
+		state = LCDMNG_STATE_SETTING;
+	}
 }
 
 static void LCDMNG_state_card_lower(){
 	if(timeout){
+		curr_screen = working_screen_temp;
 		timeout = false;
 		// Draw lower screen -> Switch again to Working
 		LCD_draw_bitmap(working_screen_temp);
 		state = LCDMNG_STATE_WORKING;
-		SCH_Add_Task(LCDMNG_timeout, WORKING_SCREEN_DURATION, 0);
+		SCH_Add_Task(LCDMNG_timeout, WORKING_SCREEN_DURATION_WHEN_LOWER_CARD, 0);
 	}
 }
 
@@ -1207,7 +1298,7 @@ static void LCDMNG_state_card_empty(){
 	if(timeout){
 		timeout = false;
 		state = LCDMNG_STATE_WORKING;
-		SCH_Add_Task(LCDMNG_timeout, WORKING_SCREEN_DURATION, 0);
+		timeout_task_id = SCH_Add_Task(LCDMNG_timeout, WORKING_SCREEN_DURATION_WHEN_EMPTY_CARD, 0);
 	}
 }
 
@@ -1216,30 +1307,65 @@ static void LCDMNG_state_card_error(){
 	if(timeout){
 		timeout = false;
 		state = LCDMNG_STATE_WORKING;
-		SCH_Add_Task(LCDMNG_timeout, WORKING_SCREEN_DURATION, 0);
+		timeout_task_id = SCH_Add_Task(LCDMNG_timeout, WORKING_SCREEN_DURATION_WHEN_ERROR_CARD, 0);
 	}
 }
 
 static void LCDMNG_state_idle(){
 	// Do nothing
 	if(timeout){
+		curr_screen = working_screen_temp;
 		timeout = false;
 		LCD_draw_bitmap(working_screen_temp);
 		state = LCDMNG_STATE_WORKING;
-		SCH_Add_Task(LCDMNG_timeout, WORKING_SCREEN_DURATION, 0);
+		timeout_task_id = SCH_Add_Task(LCDMNG_timeout, WORKING_SCREEN_DURATION, 0);
 	}
+}
+
+static void LCDMNG_run_blink(){
+	if(blink_enable){
+		if(timeout_for_blink){
+			LCDMNG_blink();
+			timeout_for_blink = false;
+			SCH_Add_Task(LCDMNG_timeout, BLINK_INTERVAL, 0);
+		}
+	}
+
+}
+
+static void LCDMNG_blink(){
+	static bool blink = false;
+	uint8_t x = blink_x_position;
+	uint8_t line = blink_line_position;
+	uint8_t* _blink_font;
+	if(blink){
+		_blink_font = black7x15;
+	}else{
+		_blink_font = white7x15;
+	}
+	uint8_t xOffset = 7;
+	uint8_t yOffset = 15 / 8 + 1;
+	for (uint8_t i = 0; i < xOffset; i++) {
+		for (uint8_t j = 0; j < yOffset; j++) {
+			_blink_font[x + ((line + j) * 128)] = font[6 + j * xOffset + i];
+		}
+		x++;
+	}
+}
+
+static void LCDMNG_set_blink(size_t x_position, size_t line_position){
+	blink_x_position = x_position;
+	blink_line_position = line_position;
+	blink_enable = true;
+}
+
+static void LCDMNG_clear_blink(){
+	blink_enable = false;
 }
 
 void LCDMNG_set_init_screen(){
 	// Do nothing with argument
 	if(state != LCDMNG_STATE_INIT && state != LCDMNG_STATE_WAIT_FOR_INIT){
-		state = LCDMNG_STATE_INIT;
-	}
-}
-
-void LCDMNG_set_welcome_screen(){
-	// Do nothing with argument
-	if(state != LCDMNG_STATE_WELCOME && state != LCDMNG_STATE_WAIT_FOR_WELCOME){
 		state = LCDMNG_STATE_INIT;
 	}
 }
@@ -1292,24 +1418,58 @@ void LCDMNG_set_working_screen(RTC_t * rtc, uint32_t amount){
 	LCDMNG_set_font(font7x15);
 	LCDMNG_draw_string(working_screen_temp, WORKING_SCREEN_AMOUNT_X_POSITION, WORKING_SCREEN_AMOUNT_LINE_POSITION, amount_buf);
 	LCD_draw_bitmap(working_screen_temp);
-	if(timeout){
-		timeout = false;
-		SCH_Add_Task(LCDMNG_timeout, WORKING_SCREEN_DURATION, 0);
-		state = LCDMNG_STATE_WORKING;
-	}
 }
 
-void LCDMNG_set_processing_screen(){
-	// Do nothing with argument
-	if(state != LCDMNG_STATE_PROCESSING && state != LCDMNG_STATE_WAIT_FOR_PROCESSING && state != LCDMNG_STATE_SETTING){
-		state = LCDMNG_STATE_PROCESSING;
+
+void LCDMNG_set_password_screen(uint8_t *password, size_t password_len, uint8_t passwd_state, bool success){
+	// State: 0 is not pressed, 1 is pressed password but not entered, 2 is entered
+	// Success if entered and password correct otherwise is false
+	size_t padlen;
+	uint8_t password_buf[128];
+	uint8_t star_buf[128];
+	char * password_wrong = "Sai mat khau";
+	memset(password_screen, 0 , sizeof(password_screen));
+	LCDMNG_set_font(font5x7);
+	LCDMNG_draw_string(password_screen, PASSWORD_SCREEN_X_POSITION, PASSWORD_SCREEN_LINE_POSITION, "Password");
+	switch (passwd_state) {
+		case 0:
+			// Not Pressed -> Just show password screen title
+			// Do nothing
+			break;
+		case 1:
+			// Show password as ***
+			memset(star_buf, 0, sizeof(star_buf));
+			memset(star_buf, '*', password_len);
+			padlen = (24 - password_len) / 2 - 1;
+			snprintf(password_buf, sizeof(password_buf), "%*s%s%*s", padlen, "", star_buf , padlen, "");
+			LCDMNG_draw_string(password_screen, PASSWORD_DATA_SCREEN_X_POSITION, PASSWORD_DATA_SCREEN_LINE_POSITION, password_buf);
+			break;
+		case 2:
+			// Show password result is success or failed
+			if(!success){
+				padlen = (24 - strlen(password_wrong)) / 2 - 1;
+				snprintf(password_buf, sizeof(password_buf), "%*s%s%*s", padlen, "", password_wrong , padlen, "");
+				LCDMNG_draw_string(password_screen, PASSWORD_DATA_SCREEN_X_POSITION, PASSWORD_DATA_SCREEN_LINE_POSITION, password_buf);
+			}
+			break;
+		default:
+			break;
 	}
+	LCD_draw_bitmap(password_screen);
+	timeout = false;
+	SCH_Delete_Task(timeout_task_id);
+	timeout_task_id = SCH_Add_Task(LCDMNG_timeout, PASSWORD_SCREEN_DURATION, 0);
+	password_enable = true;
+}
+
+void LCDMNG_clear_password_screen(){
+	password_enable = false;
 }
 
 void LCDMNG_set_setting_screen(){
 	// Update argument
 	char str_buf[20];
-	for (int field_id = LCDMNG_SETTING_FIELD_DATE_TIME; field_id <= LCDMNG_SETTING_FIELD_DELETE_SUM_OF_AMOUNT; ++field_id) {
+	for (int field_id = LCDMNG_SETTING_FIELD_DATE_TIME; field_id <= LCDMNG_SETTING_FIELD_DELETE_TOTAL_AMOUNT; ++field_id) {
 		memset(str_buf, 0 , sizeof(str_buf));
 		sniprintf(str_buf, sizeof(str_buf), "%d %s", field_id, setting_field_info[field_id].name);
 		LCDMNG_set_font(font5x7);
@@ -1317,101 +1477,203 @@ void LCDMNG_set_setting_screen(){
 	}
 	// Do nothing with argument
 	LCD_draw_bitmap(setting_screen);
-	state = LCDMNG_STATE_SETTING;
+	setting_enable = true;
 }
 
-void LCDMNG_set_setting_data_screen(uint32_t field_id, void * data, size_t data_len){
+void LCDMNG_clear_setting_screen(){
+	setting_enable = false;
+}
+
+void LCDMNG_set_setting_data_screen(uint32_t field_id, void * data, size_t data_len, uint8_t state){
 	memset(setting_data_screen, 0, sizeof(setting_data_screen));
 	char field_buf[20];
 	size_t padlen = (22 - strlen(setting_field_info[field_id].name)) / 2;
 	snprintf(field_buf, sizeof(field_buf), "%*s%s%*s", padlen, "", setting_field_info[field_id].name, padlen, "");
 	LCDMNG_set_font(font5x7);
 	LCDMNG_draw_string(setting_data_screen, 0,0, field_buf);
-
-	uint8_t test;
-	char data_buf[20];
-	if(field_id == LCDMNG_SETTING_FIELD_DATE_TIME){
-		RTC_t *rtc = (RTC_t *) data;
-		snprintf(data_buf, sizeof(data_buf), "%02d:%02d %02d/%02d/%04d", rtc->hour,
-																		rtc->minute,
-																		rtc->date,
-																		rtc->month,
-																		rtc->year);
-		LCDMNG_draw_string(setting_data_screen, SETTING_SCREEN_DATA_X_POSITION, SETTING_SCREEN_DATA_LINE_POSITION, data_buf);
+	switch (field_id) {
+		case LCDMNG_SETTING_FIELD_DATE_TIME:
+			LCDMNG_setting_data_time(data, data_len, state);
+			break;
+		case LCDMNG_SETTING_FIELD_CARD_PRICE:
+			LCDMNG_setting_data_card_price(data, data_len, state);
+			break;
+		case LCDMNG_SETTING_FIELD_PASSWORD:
+			LCDMNG_setting_data_password(data, data_len, state);
+			break;
+		case LCDMNG_SETTING_FIELD_TOTAL_CARD:
+			LCDMNG_setting_data_total_card(data, data_len, state);
+			break;
+		case LCDMNG_SETTING_FIELD_DELETE_TOTAL_CARD:
+			LCDMNG_setting_data_delete_total_card(data, data_len, state);
+			break;
+		case LCDMNG_SETTING_FIELD_TOTAL_AMOUNT:
+			LCDMNG_setting_data_total_amount(data, data_len, state);
+			break;
+		case LCDMNG_SETTING_FIELD_DELETE_TOTAL_AMOUNT:
+			LCDMNG_setting_data_delete_total_amount(data, data_len, state);
+			break;
+		default:
+			break;
 	}
-	else if(field_id == LCDMNG_SETTING_FIELD_CARD_PRICE){
-		uint32_t card_prices;
-		card_prices = *(uint32_t*)data;
-		snprintf(data_buf, sizeof(data_buf), "%d", card_prices);
-		LCDMNG_draw_string(setting_data_screen, SETTING_SCREEN_DATA_X_POSITION, SETTING_SCREEN_DATA_LINE_POSITION, data_buf);
-	}
-	else if(field_id == LCDMNG_SETTING_FIELD_PASSWORD){
-		char * password = (char*) data;
-		snprintf(data_buf, sizeof(data_buf), "%s", password);
-		LCDMNG_draw_string(setting_data_screen, SETTING_SCREEN_DATA_X_POSITION, SETTING_SCREEN_DATA_LINE_POSITION, data_buf);
-	}
-	else if(field_id == LCDMNG_SETTING_FIELD_TOTAL_CARD){
-		uint32_t total_card[3];
-		memccpy(total_card, data, sizeof(total_card));
-		snprintf(data_buf, sizeof(data_buf), "Hom nay:     %d", total_card[1]);
-		LCDMNG_draw_string(setting_data_screen, SETTING_SCREEN_DATA_X_POSITION - 5, SETTING_SCREEN_DATA_LINE_POSITION -1, data_buf);
-		snprintf(data_buf, sizeof(data_buf), "Thang nay:   %d", total_card[2]);
-		LCDMNG_draw_string(setting_data_screen, SETTING_SCREEN_DATA_X_POSITION - 5 , SETTING_SCREEN_DATA_LINE_POSITION+1, data_buf);
-		snprintf(data_buf, sizeof(data_buf), "Tong:        %d", total_card[0]);
-		LCDMNG_draw_string(setting_data_screen, SETTING_SCREEN_DATA_X_POSITION - 5, SETTING_SCREEN_DATA_LINE_POSITION+3, data_buf);
-	}
-	else if(field_id == LCDMNG_SETTING_FIELD_DELETE_TOTAL_CARD){
-		snprintf(data_buf, sizeof(data_buf), "   Da xoa the!");
-		LCDMNG_draw_string(setting_data_screen, SETTING_SCREEN_DATA_X_POSITION, SETTING_SCREEN_DATA_LINE_POSITION, data_buf);
-	}
-	else if(field_id == LCDMNG_SETTING_FIELD_SUM_OF_AMOUNT){
-		uint32_t sum_of_amount;
-		sum_of_amount = *(uint32_t*)data;
-		LCDMNG_draw_string(setting_data_screen, SETTING_SCREEN_DATA_X_POSITION, SETTING_SCREEN_DATA_LINE_POSITION -1, "Tong thu nhap");
-		snprintf(data_buf, sizeof(data_buf), "%d", sum_of_amount);
-		LCDMNG_draw_string(setting_data_screen, SETTING_SCREEN_DATA_X_POSITION, SETTING_SCREEN_DATA_LINE_POSITION + 1, data_buf);
-	}
-	else if(field_id == LCDMNG_SETTING_FIELD_DELETE_SUM_OF_AMOUNT){
-		snprintf(data_buf, sizeof(data_buf), "  Da xoa thu nhap!");
-		LCDMNG_draw_string(setting_data_screen, SETTING_SCREEN_DATA_X_POSITION, SETTING_SCREEN_DATA_LINE_POSITION, data_buf);
-	}
-//		LCDMNG_draw_string(setting_data_screen, SETTING_SCREEN_DATA_X_POSITION, SETTING_SCREEN_DATA_LINE_POSITION, data_buf);
-	// Do nothing with argument
 	LCD_draw_bitmap(setting_data_screen);
-	state = LCDMNG_STATE_SETTING_DATA;
+	setting_data_enable = true;
 }
 
-void LCDMNG_set_card_lower(){
-	card_lower = true;
+void LCDMNG_clear_setting_data_screen(){
+	setting_data_enable = false;
 }
 
-void LCDMNG_clear_card_lower(){
-	card_lower = false;
+void LCDMNG_set_card_lower_screen(){
+	card_lower_enable = true;
 }
 
-void LCDMNG_set_card_empty(){
-	card_empty = true;
+void LCDMNG_clear_card_lower_screen(){
+	card_lower_enable = false;
 }
 
-void LCDMNG_clear_card_empty(){
-	card_empty = false;
+void LCDMNG_set_card_empty_screen(){
+	card_empty_enable = true;
+}
+
+void LCDMNG_clear_card_empty_screen(){
+	card_empty_enable = false;
 }
 
 void LCDMNG_set_idle_screen(){
-	state = LCDMNG_STATE_IDLE;
+	idle_enable = true;
 }
 
-void LCDMNG_set_card_error(){
-	card_error = true;
+void LCDMNG_clear_idle_screen(){
+	idle_enable = false;
 }
 
-void LCDMNG_clear_card_error(){
-	card_error = false;
+void LCDMNG_set_card_error_screen(){
+	card_error_enable = true;
+}
+
+void LCDMNG_clear_card_error_screen(){
+	card_error_enable = false;
 }
 
 void LCDMNG_test(){
 	LCD_draw_bitmap(welcome_screen);
 }
+
+static void LCDMNG_setting_data_time(void * data, size_t data_len, uint8_t state){
+	char data_buf[20];
+	RTC_t *rtc = (RTC_t *) data;
+	switch (state) {
+		case LCDMNG_SETTING_DATA_NOT_ENTERED:
+			snprintf(data_buf, sizeof(data_buf), "  %02d:%02d %02d/%02d/%04d  ", rtc->hour,
+																				rtc->minute,
+																				rtc->date,
+																				rtc->month,
+																				rtc->year);
+			break;
+		case LCDMNG_SETTING_DATA_ENTERED:
+			snprintf(data_buf, sizeof(data_buf), SAVE_CHECK);
+			break;
+		case LCDMNG_SETTING_DATA_CONFIRMED:
+			snprintf(data_buf, sizeof(data_buf), SAVED);
+			break;
+		default:
+			break;
+	}
+	LCDMNG_draw_string(setting_data_screen, SETTING_SCREEN_DATA_X_POSITION, SETTING_SCREEN_DATA_LINE_POSITION, data_buf);
+}
+static void LCDMNG_setting_data_card_price(void * data, size_t data_len, uint8_t state){
+	char data_buf[20];
+	uint32_t card_prices = *(uint32_t*)data;
+	switch (state) {
+		case LCDMNG_SETTING_DATA_NOT_ENTERED:
+			snprintf(data_buf, sizeof(data_buf), "       %d", card_prices);
+			break;
+		case LCDMNG_SETTING_DATA_ENTERED:
+			snprintf(data_buf, sizeof(data_buf), SAVE_CHECK);
+			break;
+		case LCDMNG_SETTING_DATA_CONFIRMED:
+			snprintf(data_buf, sizeof(data_buf), SAVED);
+			break;
+		default:
+			break;
+	}
+	LCDMNG_draw_string(setting_data_screen, SETTING_SCREEN_DATA_X_POSITION, SETTING_SCREEN_DATA_LINE_POSITION, data_buf);
+}
+static void LCDMNG_setting_data_password(void * data, size_t data_len, uint8_t state){
+	char data_buf[20];
+	char * password = (char*) data;
+	switch (state) {
+		case LCDMNG_SETTING_DATA_NOT_ENTERED:
+			snprintf(data_buf, sizeof(data_buf), "      %s", password);
+			break;
+		case LCDMNG_SETTING_DATA_ENTERED:
+			snprintf(data_buf, sizeof(data_buf), SAVE_CHECK);
+			break;
+		case LCDMNG_SETTING_DATA_CONFIRMED:
+			snprintf(data_buf, sizeof(data_buf), SAVED);
+			break;
+		default:
+			break;
+	}
+	LCDMNG_draw_string(setting_data_screen, SETTING_SCREEN_DATA_X_POSITION, SETTING_SCREEN_DATA_LINE_POSITION, data_buf);
+}
+static void LCDMNG_setting_data_total_card(void * data, size_t data_len, uint8_t state){
+	char data_buf[20];
+	uint32_t total_card[3];
+	memcpy(total_card, data, sizeof(total_card));
+	snprintf(data_buf, sizeof(data_buf), "Hom nay:     %d", total_card[1]);
+	LCDMNG_draw_string(setting_data_screen, SETTING_SCREEN_DATA_X_POSITION - 5, SETTING_SCREEN_DATA_LINE_POSITION -1, data_buf);
+	snprintf(data_buf, sizeof(data_buf), "Thang nay:   %d", total_card[2]);
+	LCDMNG_draw_string(setting_data_screen, SETTING_SCREEN_DATA_X_POSITION - 5 , SETTING_SCREEN_DATA_LINE_POSITION+1, data_buf);
+	snprintf(data_buf, sizeof(data_buf), "Tong:        %d", total_card[0]);
+	LCDMNG_draw_string(setting_data_screen, SETTING_SCREEN_DATA_X_POSITION - 5, SETTING_SCREEN_DATA_LINE_POSITION+3, data_buf);
+}
+static void LCDMNG_setting_data_delete_total_card(void * data, size_t data_len, uint8_t state){
+	char data_buf[20];
+	switch (state) {
+		case LCDMNG_SETTING_DATA_NOT_ENTERED:
+			snprintf(data_buf, sizeof(data_buf), DELETED_CHECK);
+			break;
+		case LCDMNG_SETTING_DATA_ENTERED:
+		case LCDMNG_SETTING_DATA_CONFIRMED:
+			snprintf(data_buf, sizeof(data_buf), DELETED);
+			break;
+		default:
+			break;
+	}
+	LCDMNG_draw_string(setting_data_screen, SETTING_SCREEN_DATA_X_POSITION, SETTING_SCREEN_DATA_LINE_POSITION, data_buf);
+}
+static void LCDMNG_setting_data_total_amount(void * data, size_t data_len, uint8_t state){
+	char data_buf[20];
+	uint32_t sum_of_amount = *(uint32_t*)data;
+	switch (state) {
+		case LCDMNG_SETTING_DATA_NOT_ENTERED:
+		case LCDMNG_SETTING_DATA_ENTERED:
+		case LCDMNG_SETTING_DATA_CONFIRMED:
+			snprintf(data_buf, sizeof(data_buf), "       %d", sum_of_amount);
+			break;
+		default:
+			break;
+	}
+	LCDMNG_draw_string(setting_data_screen, SETTING_SCREEN_DATA_X_POSITION, SETTING_SCREEN_DATA_LINE_POSITION + 1, data_buf);
+}
+static void LCDMNG_setting_data_delete_total_amount(void * data, size_t data_len, uint8_t state){
+	char data_buf[20];
+	switch (state) {
+		case LCDMNG_SETTING_DATA_NOT_ENTERED:
+			snprintf(data_buf, sizeof(data_buf), DELETED_CHECK);
+			break;
+		case LCDMNG_SETTING_DATA_ENTERED:
+		case LCDMNG_SETTING_DATA_CONFIRMED:
+			snprintf(data_buf, sizeof(data_buf), DELETED);
+			break;
+		default:
+			break;
+	}
+	LCDMNG_draw_string(setting_data_screen, SETTING_SCREEN_DATA_X_POSITION, SETTING_SCREEN_DATA_LINE_POSITION, data_buf);
+}
+
 
 static void LCDMNG_draw_string(uint8_t *buff, uint8_t x, uint8_t line, uint8_t *c) {
 	while (c[0] != 0) {
@@ -1448,8 +1710,9 @@ static void LCDMNG_timeout(){
 	timeout = true;
 }
 
-static void LCDMNG_timeout_for_idle(){
-	timeout_for_idle = true;
+
+static void LCDMNG_timeout_for_blink(){
+	timeout_for_blink = true;
 }
 
 static void LCDMNG_printf(){

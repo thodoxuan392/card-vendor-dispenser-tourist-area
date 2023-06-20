@@ -11,7 +11,7 @@
 #include "Device/eeprom.h"
 #include "Hal/i2c.h"
 
-#define I2C_ADDRESS	0xA0
+#define EEPROM_ADDRESS	0xA0
 #define PAGE_SIZE	32	// 32 bytes
 
 enum {
@@ -41,7 +41,8 @@ bool EEPROM_read(uint16_t address , uint8_t * data, size_t data_len){
 		address = data_len - remain_size;
 		i2c_buffer_rd[0] = (uint8_t)(address >> 8);
 		i2c_buffer_rd[1] = (uint8_t)address ;
-		I2C_write_and_read(I2C_ADDRESS , &i2c_buffer_rd[0], 2, &i2c_buffer_rd[2], read_size);
+		I2C_write(EEPROM_ADDRESS, &i2c_buffer_rd[0], 2);
+		I2C_read(EEPROM_ADDRESS, &i2c_buffer_rd[2], read_size);
 		memcpy(&data[data_len - remain_size], &i2c_buffer_rd[2], read_size);
 		remain_size -= read_size;
 	}
@@ -62,7 +63,7 @@ bool EEPROM_write(uint16_t _address , uint8_t * data, size_t data_len){
 		i2c_buffer_wr[0] = (uint8_t)(address >> 8);
 		i2c_buffer_wr[1] = (uint8_t)address ;
 		memcpy(&i2c_buffer_wr[2], &data[data_len - remain_size], write_size);
-		I2C_write(I2C_ADDRESS, i2c_buffer_wr, write_size + 2);
+		I2C_write(EEPROM_ADDRESS, i2c_buffer_wr, write_size + 2);
 		remain_size -= write_size;
 	}
 	return true;

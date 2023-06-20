@@ -66,7 +66,9 @@ static TCDMNG_Status_t status = {
 		.is_empty = true
 	}
 };
-static TCD_id_t tcd_using;
+
+static TCD_id_t prev_tcd_using = TCD_1;
+static TCD_id_t tcd_using = TCD_1;
 
 // Action
 static bool payout_enable = false;
@@ -260,25 +262,49 @@ static void TCDMNG_wait_for_reseting(){
 
 static void TCDMNG_payouting(){
 	// Check what TCD is available for payout
-	if((TCDMNG_is_available(TCD_1) && !TCD_is_lower(TCD_1))
-		|| (TCDMNG_is_available(TCD_1) && TCD_is_lower(TCD_1) && TCD_is_lower(TCD_2))){
-		tcd_using = TCD_1;
-		TCD_payout_card(TCD_1, true);
-		// How long to enable payout signal
-		SCH_Delete_Task(task_id);
-		timeout_flag = false;
-		task_id = SCH_Add_Task(TCDMNG_timeout, PAYOUT_DURATION, 0);
-		tcdmng_state = TCDMNG_WAIT_FOR_PAYOUTING;
+	if(prev_tcd_using == TCD_1){
+		if((TCDMNG_is_available(TCD_2) && !TCD_is_lower(TCD_2))
+			|| (TCDMNG_is_available(TCD_2) && TCD_is_lower(TCD_2) && TCD_is_lower(TCD_1))){
+			tcd_using = TCD_2;
+			TCD_payout_card(TCD_2, true);
+			// How long to enable payout signal
+			SCH_Delete_Task(task_id);
+			timeout_flag = false;
+			task_id = SCH_Add_Task(TCDMNG_timeout, PAYOUT_DURATION, 0);
+			tcdmng_state = TCDMNG_WAIT_FOR_PAYOUTING;
+		}
+		else if(TCDMNG_is_available(TCD_1)){
+			tcd_using = TCD_1;
+			TCD_payout_card(TCD_1, true);
+			// How long to enable payout signal
+			SCH_Delete_Task(task_id);
+			timeout_flag = false;
+			task_id = SCH_Add_Task(TCDMNG_timeout, PAYOUT_DURATION, 0);
+			tcdmng_state = TCDMNG_WAIT_FOR_PAYOUTING;
+		}
 	}
-	else if(TCDMNG_is_available(TCD_2)){
-		tcd_using = TCD_2;
-		TCD_payout_card(TCD_2, true);
-		// How long to enable payout signal
-		SCH_Delete_Task(task_id);
-		timeout_flag = false;
-		task_id = SCH_Add_Task(TCDMNG_timeout, PAYOUT_DURATION, 0);
-		tcdmng_state = TCDMNG_WAIT_FOR_PAYOUTING;
+	else if(prev_tcd_using == TCD_2){
+		if((TCDMNG_is_available(TCD_1) && !TCD_is_lower(TCD_1))
+			|| (TCDMNG_is_available(TCD_1) && TCD_is_lower(TCD_1) && TCD_is_lower(TCD_2))){
+			tcd_using = TCD_1;
+			TCD_payout_card(TCD_1, true);
+			// How long to enable payout signal
+			SCH_Delete_Task(task_id);
+			timeout_flag = false;
+			task_id = SCH_Add_Task(TCDMNG_timeout, PAYOUT_DURATION, 0);
+			tcdmng_state = TCDMNG_WAIT_FOR_PAYOUTING;
+		}
+		else if(TCDMNG_is_available(TCD_2)){
+			tcd_using = TCD_2;
+			TCD_payout_card(TCD_2, true);
+			// How long to enable payout signal
+			SCH_Delete_Task(task_id);
+			timeout_flag = false;
+			task_id = SCH_Add_Task(TCDMNG_timeout, PAYOUT_DURATION, 0);
+			tcdmng_state = TCDMNG_WAIT_FOR_PAYOUTING;
+		}
 	}
+	prev_tcd_using = tcd_using;
 }
 
 static void TCDMNG_wait_for_payouting(){

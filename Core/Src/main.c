@@ -22,13 +22,14 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "Hal/clock.h"
-#include "Hal/rtc.h"
 #include "Hal/gpio.h"
 #include "Hal/timer.h"
 #include "Hal/i2c.h"
 #include "Hal/uart.h"
 #include "Device/eeprom.h"
 #include "Device/keypad.h"
+#include "Device/billacceptor.h"
+#include "Device/rtc.h"
 #include "Device/lcd.h"
 #include "Device/tcd.h"
 #include "DeviceManager/billacceptormanager.h"
@@ -55,6 +56,7 @@
 /* USER CODE BEGIN PM */
 
 /* USER CODE END PM */
+
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -82,7 +84,6 @@ int main(void)
   /* USER CODE BEGIN Init */
   // Hal init
   CLOCK_init();
-  RTC_init();
   GPIO_init();
   TIMER_init();
   UART_init();
@@ -97,6 +98,7 @@ int main(void)
   TCD_init();
   KEYPAD_init();
   LCD_init();
+  RTC_init();
   // Device Manager Init
   BILLACCEPTORMNG_init();
   TCDMNG_init();
@@ -114,6 +116,9 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+//  RTC_test();
+//  EEPROM_test();
+//  CONFIG_test();
   while (1)
   {
 	  STATEMACHINE_run();
@@ -126,9 +131,6 @@ int main(void)
   /* USER CODE END 3 */
 }
 
-/* USER CODE BEGIN 4 */
-
-/* USER CODE END 4 */
 
 /**
   * @brief  This function is executed in case of error occurrence.

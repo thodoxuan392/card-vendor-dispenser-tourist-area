@@ -37,12 +37,13 @@ static void SM_payouting_card();
 static void SM_wait_for_payouting_card();
 static void SM_callbacking_card();
 static void SM_wait_for_callbacking_card();
-static void SM_update_total_card_by_time();
+static void SM_update_total_card_by_time(RTC_t *rtc , CONFIG_t *config);
 static void SM_timeout();
+static void SM_timeout_for_update();
 static void SM_printf();
 
-static uint8_t prev_state = SM_IDLE;
-static uint8_t state = SM_IDLE;
+static uint8_t prev_state = SM_INIT;
+static uint8_t state = SM_INIT;
 static uint8_t timeout_task_id;
 static const char * state_name[] = {
 		[SM_INIT] = "SM_INIT\r\n",
@@ -54,6 +55,7 @@ static const char * state_name[] = {
 		[SM_CALLBACKING_CARD] = "SM_CALLBACKING_CARD\r\n",
 		[SM_WAIT_FOR_CALLBACKING_CARD] = "SM_WAIT_FOR_CALLBACKING_CARD\r\n",
 };
+static bool timeout_for_update = true;
 static bool timeout = false;
 
 bool STATEMACHINE_init(){
@@ -104,8 +106,6 @@ bool STATEMACHINE_run(){
 
 
 static void SM_init(){
-	// LCD Manager Set Init screen
-	LCDMNG_set_init_screen();
 	state = SM_WAITING_FOR_INIT;
 	timeout_task_id = SCH_Add_Task(SM_timeout, SM_INIT_DURATION, 0);
 
@@ -118,58 +118,81 @@ static void SM_wait_for_init(){
 static void SM_idle(){
 
 	// LCD Manager set IDLE screen
-	CONFIG_t *config = CONFIG_get();
-	RTC_t rtc = RTC_get_time();
-	// Update screen
-	LCDMNG_set_working_screen_without_draw(&rtc, config->amount);
-	// Update total card
-	SM_update_total_card_by_time();
+	CONFIG_t *config;
+	RTC_t rtc;
+	if(timeout_for_update){
+		timeout_for_update = false;
+		rtc = RTC_get_time();
+		config = CONFIG_get();
+		LCDMNG_set_working_screen_without_draw(&rtc, config->amount);
+		SM_update_total_card_by_time(&rtc, config);
+		SCH_Add_Task(SM_timeout_for_update, SM_UPDATE_DURATION, 0);
+	}
 	// Check if Card is error
 	if(TCDMNG_is_error()){
-		LCDMNG_set_card_error();
-		BILLACCEPTORMNG_disable();
+		LCDMNG_set_card_error_screen();
 	}else{
-		LCDMNG_clear_card_error();
-		BILLACCEPTORMNG_enable();
+		LCDMNG_clear_card_error_screen();
 	}
 
 	// Check if Card is empty
 	if(TCDMNG_is_empty()){
-		LCDMNG_set_card_empty();
-		BILLACCEPTORMNG_disable();
+		LCDMNG_set_card_empty_screen();
 	}else{
-		LCDMNG_clear_card_empty();
-		BILLACCEPTORMNG_enable();
+		LCDMNG_clear_card_empty_screen();
 	}
+
+	if(TCDMNG_is_empty() || TCDMNG_is_error()){
+		if(BILLACCEPTORMNG_is_enabled()){
+			utils_log_warn("Disable BillAcceptor because TCD is empty\r\n");
+			BILLACCEPTORMNG_disable();
+		}
+	}else{
+		if(!BILLACCEPTORMNG_is_enabled()){
+			utils_log_warn("Renable BillAcceptor because TCD is not empty more\r\n");
+			BILLACCEPTORMNG_enable();
+		}
+	}
+
 
 	// Check if Card is lower
 	if(TCDMNG_is_lower()){
-		LCDMNG_set_card_lower();
+		LCDMNG_set_card_lower_screen();
 	}else{
-		LCDMNG_clear_card_lower();
+		LCDMNG_clear_card_lower_screen();
 	}
 
 	// Check if BILL is accepted
 	if(BILLACCEPTORMNG_is_accepted()){
+		LCDMNG_clear_idle_screen();
 		BILLACCEPTORMNG_clear_accepted();
+		config = CONFIG_get();
+		rtc = RTC_get_time();
+		LCDMNG_set_working_screen(&rtc, config->amount);
+		// Timeout to wait user can view money change
+		timeout = false;
+		timeout_task_id = SCH_Add_Task(SM_timeout, SM_BILLACCEPTOR_DURATION, 0);
 		state = SM_BILL_ACCEPTED;
 		return;
 	}
 	// Check amount and payout card
 	uint32_t amount = BILLACCEPTORMNG_get_amount();
+	config = CONFIG_get();
 	if(amount >= config->card_price){
+		LCDMNG_clear_idle_screen();
 		if(TCDMNG_is_idle() && TCDMNG_is_available_for_use()){
 			state = SM_PAYOUTING_CARD;
 		}
 		return;
 	}
+	LCDMNG_set_idle_screen();
 }
 static void SM_bill_accepted(){
-	CONFIG_t *config = CONFIG_get();
-	RTC_t rtc = RTC_get_time();
-	LCDMNG_set_working_screen(&rtc, config->amount);
-	state = SM_IDLE;
+	if(timeout){
+		state = SM_IDLE;
+	}
 }
+
 static void SM_payouting_card(){
 	// LCD Manager set IDLE screen
 	CONFIG_t *config = CONFIG_get();
@@ -188,40 +211,27 @@ static void SM_payouting_card(){
 }
 
 static void SM_wait_for_payouting_card(){
-	CONFIG_t *config = CONFIG_get();
-	RTC_t rtc = RTC_get_time();
+	CONFIG_t *config;
+	RTC_t rtc;
 	if(TCDMNG_is_idle()){
+		config = CONFIG_get();
+		rtc = RTC_get_time();
 		LCDMNG_set_working_screen(&rtc, config->amount);
 		state = SM_IDLE;
 	}
 }
 
 static void SM_callbacking_card(){
-	// Callback card when TCDMNG idle
-	if(TCDMNG_is_idle() && !TCDMNG_is_error()){
-		TCDMNG_callback();
-		state = SM_WAIT_FOR_CALLBACKING_CARD;
-	}
 }
 
 static void SM_wait_for_callbacking_card(){
-	CONFIG_t *config = CONFIG_get();
-	RTC_t rtc = RTC_get_time();
-	if(TCDMNG_is_in_processing()){
-		LCDMNG_set_processing_screen();
-	}
-	if(TCDMNG_is_idle()){
-		LCDMNG_set_working_screen(&rtc, config->amount);
-	}
 }
 
-static void SM_update_total_card_by_time(){
-	RTC_t rtc = RTC_get_time();
-	CONFIG_t *config = CONFIG_get();
-	if(rtc.hour == 0 && rtc.minute == 0){
+static void SM_update_total_card_by_time(RTC_t *rtc , CONFIG_t *config){
+	if(rtc->hour == 0 && rtc->minute == 0){
 		// Update total card by day
 		config->total_card_by_day = 0;
-		if(rtc.date == 0){
+		if(rtc->date == 0){
 			// Update total card by month
 			config->total_card_by_month = 0;
 		}
@@ -231,6 +241,10 @@ static void SM_update_total_card_by_time(){
 
 static void SM_timeout(){
 	timeout = true;
+}
+
+static void SM_timeout_for_update(){
+	timeout_for_update = true;
 }
 
 static void SM_printf(){

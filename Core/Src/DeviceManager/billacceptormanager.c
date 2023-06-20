@@ -35,6 +35,7 @@ enum {
 };
 
 // Bill Info
+static bool is_enable = true;
 static uint8_t billacceptormng_state = BILLACCEPTORMNG_IDLE;
 static uint8_t prev_billacceptor_status = STATUS_SUCCESS;
 static uint8_t billacceptor_status = STATUS_SUCCESS;
@@ -106,7 +107,6 @@ bool BILLACCEPTORMNG_init(){
 	BILLACCEPTOR_setup(&setup);
 	BILLACCEPTOR_security(&security);
 	BILLACCEPTOR_billtype(&billtype_default);
-
 }
 
 bool BILLACCEPTORMNG_run(){
@@ -139,10 +139,16 @@ void BILLACCEPTORMNG_disable(){
 		.bill_enable = 0x00
 	};
 	BILLACCEPTOR_billtype(&billtype);
+	is_enable = false;
 }
 
 void BILLACCEPTORMNG_enable(){
 	BILLACCEPTOR_billtype(&billtype_default);
+	is_enable = true;
+}
+
+bool BILLACCEPTORMNG_is_enabled(){
+	return is_enable;
 }
 
 bool BILLACCEPTORMNG_is_error(){

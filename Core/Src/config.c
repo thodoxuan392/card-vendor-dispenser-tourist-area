@@ -60,10 +60,10 @@ void CONFIG_clear(){
 }
 
 void CONFIG_test(){
-	uint8_t data = 0x23;
-	EEPROM_read(0x00F0, &data, 1);
-	EEPROM_write(0x00F0, &data, 1);
-	utils_log_info("DAta: %d\r\n", data);
+	CONFIG_t temp;
+	EEPROM_read(EEPROM_CONFIG_ADDRESS, &temp, sizeof(CONFIG_t));
+	EEPROM_write(EEPROM_CONFIG_ADDRESS, &config, sizeof(CONFIG_t));
+	EEPROM_read(EEPROM_CONFIG_ADDRESS, &temp, sizeof(CONFIG_t));
 }
 
 static bool CONFIG_set_default(CONFIG_t * _config,  CONFIG_t *config_temp){
