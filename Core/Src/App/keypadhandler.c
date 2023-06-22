@@ -207,6 +207,7 @@ static bool KEYPADHANDLER_execute(uint8_t fn, uint8_t *data, size_t data_len, ui
 
 static void KEYPADHANDLER_time(uint8_t *data, size_t data_len, uint8_t pressed_state){
 	RTC_t rtc;
+	CONFIG_t *config;
 	uint8_t lcdmng_setting_data_state = LCDMNG_SETTING_DATA_NOT_ENTERED;
 	switch (pressed_state) {
 		case KEYPADHANDLER_SETTING_DATA_NOT_PRESSED:
@@ -221,6 +222,9 @@ static void KEYPADHANDLER_time(uint8_t *data, size_t data_len, uint8_t pressed_s
 			break;
 		case KEYPADHANDLER_SETTING_DATA_CONFIRMED:
 			KEYPADHANDLER_parse_time(data, data_len, &rtc);
+			// Update screen when set new time
+			config = CONFIG_get();
+			LCDMNG_set_working_screen_without_draw(&rtc, config->amount);
 			RTC_set_time(&rtc);
 			lcdmng_setting_data_state = LCDMNG_SETTING_DATA_CONFIRMED;
 			break;
