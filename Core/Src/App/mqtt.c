@@ -13,13 +13,14 @@
 
 
 enum {
+	MQTT_RESTART,
     MQTT_WAIT_FOR_INTERNET_CONNECTED,
     MQTT_CLIENT_CONFIG,
     MQTT_CLIENT_CONNECT,
     MQTT_CLIENT_SUBCRIBE,
     MQTT_CLIENT_PUBLISH,
     MQTT_CLIENT_DISCONNECT,
-    MQTT_CLIENT_IDLE,
+    MQTT_CLIENT_IDLE
 };
 
 static void on_connect_cb(uint8_t status);
@@ -47,7 +48,8 @@ static bool published = false;
 static char client_id[CLIENTID_MAX_LEN];
 
 static char subtopic_entry[][TOPIC_MAX_LEN] = {
-		[SUBTOPIC_COMMAND] = "device/%s/command",
+		[SUBTOPIC_CONFIG] = "%s/config",
+		[SUBTOPIC_COMMAND] = "%s/command",
 };
 
 static netif_mqtt_client_t mqtt_client = {
@@ -67,14 +69,13 @@ static netif_mqtt_client_t mqtt_client = {
 void MQTT_init(){
 	char topic_temp[TOPIC_MAX_LEN];
 	CONFIG_t* config = CONFIG_get();
-	char * deviceId = "test";
 	// Init Client ID
-	snprintf(client_id, CLIENTID_MAX_LEN,"CD_%s", deviceId);
+	snprintf(client_id, CLIENTID_MAX_LEN,"CD_%s", config->device_id);
 	mqtt_client.client_id = client_id;
 	// Init SubTopic
 	for (int var = 0; var < sizeof(subtopic_entry)/sizeof(subtopic_entry[0]); ++var) {
 		// Append boxID to Topic
-		snprintf(topic_temp, TOPIC_MAX_LEN, subtopic_entry[var], deviceId);
+		snprintf(topic_temp, TOPIC_MAX_LEN, subtopic_entry[var], config->device_id);
 		memcpy(subtopic_entry[var], topic_temp, TOPIC_MAX_LEN);
 	}
     // Init Tx-Rx Buffer;
@@ -99,9 +100,13 @@ void MQTT_run(){
 	netif_run();
 	switch (mqtt_state) {
 		case MQTT_WAIT_FOR_INTERNET_CONNECTED:
+			if(NETIF_GET_TIME_MS() - last_sent < NETWORK_RESET_WAIT_TIME){
+				break;
+			}
 			netif_manager_is_connect_to_internet(&internet_connected);
 			if(internet_connected){
 				utils_log_info("Internet Connected\r\n");
+				last_sent = NETIF_GET_TIME_MS();
 				mqtt_state = MQTT_CLIENT_CONFIG;
 			}
 			break;
@@ -112,9 +117,9 @@ void MQTT_run(){
 				last_sent = NETIF_GET_TIME_MS();
 				mqtt_state = MQTT_CLIENT_CONNECT;
 			}else if(ret != NETIF_IN_PROCESS){
-				Error_Handler();
+				// Still here for retry
+				mqtt_state = MQTT_RESTART;
 			}
-
 			break;
 		case MQTT_CLIENT_CONNECT:
 			if(NETIF_GET_TIME_MS() - last_sent < COMMAND_INTERVAL){
@@ -126,7 +131,8 @@ void MQTT_run(){
 				last_sent = NETIF_GET_TIME_MS();
 				mqtt_state = MQTT_CLIENT_SUBCRIBE;
 			}else if(ret != NETIF_IN_PROCESS){
-				Error_Handler();
+				// Restart when not connect to MQTT
+				mqtt_state = MQTT_RESTART;
 			}
 			break;
 		case MQTT_CLIENT_SUBCRIBE:
@@ -135,15 +141,17 @@ void MQTT_run(){
 			}
 			ret = netif_mqtt_subcribe(&mqtt_client, subtopic_entry[subtopic_idx], 1);
 			if(ret == NETIF_OK){
+				utils_log_info("Subcribed: %s\r\n", subtopic_entry[subtopic_idx]);
 				subtopic_idx ++;
 				if(subtopic_idx >= subtopic_size){
 					subtopic_idx = 0;
 					mqtt_state = MQTT_CLIENT_IDLE;
 				}
-				utils_log_info("Subcribe OK\r\n");
 				last_sent = NETIF_GET_TIME_MS();
-			}else if(ret  != NETIF_IN_PROCESS){
-				Error_Handler();
+			}else if(ret != NETIF_IN_PROCESS){
+				subtopic_idx = 0;
+				// Restart when not connect to MQTT
+				mqtt_state = MQTT_RESTART;
 			}
 			break;
         case MQTT_CLIENT_PUBLISH:
@@ -158,8 +166,9 @@ void MQTT_run(){
 				last_sent = NETIF_GET_TIME_MS();
 				utils_log_info("Mqtt Publish OK\r\n");
                 mqtt_state = MQTT_CLIENT_IDLE;
-			}else if(ret  != NETIF_IN_PROCESS ){
-				Error_Handler();
+			}else if(ret  != NETIF_IN_PROCESS){
+				// Restart when not connect to MQTT
+				mqtt_state = MQTT_RESTART;
 			}
 			break;
 		case MQTT_CLIENT_IDLE:
@@ -172,6 +181,20 @@ void MQTT_run(){
                 utils_buffer_pop(&mqtt_tx_buffer, &publish_message);
                 mqtt_state = MQTT_CLIENT_PUBLISH;
             }
+			break;
+		case MQTT_RESTART:
+        	if(NETIF_GET_TIME_MS() - last_sent < COMMAND_INTERVAL){
+				break;
+			}
+			ret = netif_manager_reset();
+			if(ret == NETIF_OK){
+				last_sent = NETIF_GET_TIME_MS();
+				utils_log_info("Network is reseted successful\r\n");
+                mqtt_state = MQTT_WAIT_FOR_INTERNET_CONNECTED;
+			}else if(ret  != NETIF_IN_PROCESS){
+				last_sent = NETIF_GET_TIME_MS();
+				mqtt_state = MQTT_WAIT_FOR_INTERNET_CONNECTED;
+			}
 			break;
 		default:
 			break;
@@ -211,15 +234,17 @@ static void timeout_to_publish(){
 
 
 static void on_connect_cb(uint8_t status){
+	utils_log_debug("Connected callback\r\n");
 	connected = true;
 }
 
 static void on_disconnect_cb(uint8_t status){
+	utils_log_debug("Disconnected callback\r\n");
 	connected = false;
 }
 
 static void on_message_cb(char * topic, char * payload){
-	utils_log_debug("on_message_cb: topic %s, payload %s", topic,payload);
+	utils_log_debug("On message callback: topic %s, payload %s\r\n", topic,payload);
     MQTT_message_t message;
     message.topic_id = mqtt_subtopic_to_id(topic);
     memcpy(message.payload, payload , strlen(payload));
@@ -227,13 +252,12 @@ static void on_message_cb(char * topic, char * payload){
 }
 
 static void on_publish_cb(uint8_t status){
-	// reset
-	published = false;
+	utils_log_debug("On publish callback\r\n");
 }
 
 static uint8_t mqtt_subtopic_to_id(char * topic){
 	for (int var = 0; var < sizeof(subtopic_entry)/sizeof(subtopic_entry[0]); ++var) {
-		if(!strstr(subtopic_entry[var], topic)){
+		if(strstr(subtopic_entry[var], topic)){
 			return var;
 		}
 	}

@@ -4,3 +4,6 @@
 [submodule "Core/Lib/utils"]
 	path = Core/Lib/utils
 	url = git@github.com:thodoxuan392/utils.git
+[submodule "Core/Lib/jsmn"]
+	path = Core/Lib/jsmn
+	url = git@github.com:thodoxuan392/jsmn.git

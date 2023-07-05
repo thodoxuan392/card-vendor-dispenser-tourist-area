@@ -11,12 +11,24 @@
 #include "stdio.h"
 #include "stdbool.h"
 
+#define VERSION_MAX_LEN		6
+#define VERSION	 			"1.0.0"
+
+#define MANUAL_MODE_PASSWORD		"987654321"
+
 #define SETTING_MODE_PASSWORD_MAX_LEN	10
 #ifndef SETTING_MODE_PASSWORD
-	#define SETTING_MODE_PASSWORD	"2341233450"
+	#define SETTING_MODE_PASSWORD	"123"
+#endif
+
+#define DEVICE_ID_MAX_LEN				10
+#ifndef DEVICE_ID_DEFAULT
+	#define DEVICE_ID_DEFAULT		"123456"
 #endif
 
 typedef struct {
+	char version[VERSION_MAX_LEN];
+	char device_id[DEVICE_ID_MAX_LEN];
 	char password[SETTING_MODE_PASSWORD_MAX_LEN];
 	uint32_t card_price;
 	uint32_t amount;

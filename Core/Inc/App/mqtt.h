@@ -4,14 +4,17 @@
 #include "stdint.h"
 #include "stdbool.h"
 
-#define COMMAND_INTERVAL	1000		// 1000ms
+
+#define NETWORK_RESET_WAIT_TIME		10000	// 10000ms
+#define COMMAND_INTERVAL	2000		// 1000ms
 #define CLIENTID_MAX_LEN	64
-#define TOPIC_MAX_LEN       128
+#define TOPIC_MAX_LEN       64
 #define PAYLOAD_MAX_LEN     512
 
 
 enum {
-	SUBTOPIC_COMMAND
+	SUBTOPIC_CONFIG,
+	SUBTOPIC_COMMAND,
 };
 
 typedef struct {

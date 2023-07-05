@@ -14,6 +14,6 @@
 
 bool STATUSREPORTER_init();
 bool STATUSREPORTER_run();
-void STATUSREPORTER_amount_remain(uint32_t amount);
+void STATUSREPORTER_report_billaccepted(uint32_t bill_value);
 
 #endif /* INC_APP_STATUSREPORTER_H_ */

@@ -63,9 +63,9 @@ bool STATEMACHINE_init(){
 }
 
 bool STATEMACHINE_run(){
-//	MQTT_run();
-//	STATUSREPORTER_run();
-//	COMMANDHANDLER_run();
+	MQTT_run();
+	STATUSREPORTER_run();
+	COMMANDHANDLER_run();
 	BILLACCEPTORMNG_run();
 	LCDMNG_run();
 	KEYPADMNG_run();

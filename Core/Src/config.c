@@ -13,7 +13,9 @@
 #define EEPROM_CONFIG_ADDRESS	0x00F0
 
 static CONFIG_t config = {
-	.password = "123",
+	.version = VERSION,
+	.device_id = DEVICE_ID_DEFAULT,
+	.password = SETTING_MODE_PASSWORD,
 	.card_price = 10000,
 	.amount = 0,
 	.total_amount = 0,
@@ -45,6 +47,8 @@ void CONFIG_set(CONFIG_t * _config){
 
 
 void CONFIG_printf(){
+	utils_log_info("Version: %s\r\n", config.version);
+	utils_log_info("DeviceId: %s\r\n", config.device_id);
 	utils_log_info("Password: %s\r\n", config.password);
 	utils_log_info("CardPrice: %d\r\n", config.card_price);
 	utils_log_info("Amount: %d\r\n", config.amount);
@@ -67,9 +71,16 @@ void CONFIG_test(){
 }
 
 static bool CONFIG_set_default(CONFIG_t * _config,  CONFIG_t *config_temp){
+	// Set version
+	if(!CONFIG_field_is_empty((uint8_t*)config_temp->version, sizeof(config_temp->version))){
+		memcpy(_config->version, config_temp->version, sizeof(_config->version));
+	}
+	// Set device_id
+	if(!CONFIG_field_is_empty((uint8_t*)config_temp->device_id, sizeof(config_temp->device_id))){
+		memcpy(_config->device_id, config_temp->device_id, sizeof(_config->device_id));
+	}
 	// Set password
 	if(!CONFIG_field_is_empty((uint8_t*)config_temp->password, sizeof(config_temp->password))){
-		utils_log_info("Config_temp  pass: %s\r\n", config_temp->password);
 		memcpy(_config->password, config_temp->password, sizeof(_config->password));
 	}
 	// Set amount

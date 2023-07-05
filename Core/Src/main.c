@@ -40,7 +40,6 @@
 #include "App/statusreporter.h"
 #include "App/statemachine.h"
 
-#include "Lib/utils/utils_logger.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -119,6 +118,7 @@ int main(void)
 //  RTC_test();
 //  EEPROM_test();
 //  CONFIG_test();
+//  JSMNG_test();
   while (1)
   {
 	  STATEMACHINE_run();
