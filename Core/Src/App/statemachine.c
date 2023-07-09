@@ -221,6 +221,14 @@ static void SM_wait_for_payouting_card(){
 		LCDMNG_set_working_screen(&rtc, config->amount);
 		state = SM_IDLE;
 	}
+
+	// Check bill accepted
+	if(BILLACCEPTORMNG_is_accepted()){
+		BILLACCEPTORMNG_clear_accepted();
+		config = CONFIG_get();
+		rtc = RTC_get_time();
+		LCDMNG_set_working_screen(&rtc, config->amount);
+	}
 }
 
 static void SM_callbacking_card(){
