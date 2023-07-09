@@ -178,7 +178,9 @@ static void SM_idle(){
 	// Check amount and payout card
 	uint32_t amount = BILLACCEPTORMNG_get_amount();
 	config = CONFIG_get();
-	if(amount >= config->card_price){
+	if(amount >= config->card_price
+			&& amount > 0
+			&& config->card_price > 0){
 		LCDMNG_clear_idle_screen();
 		if(TCDMNG_is_idle() && TCDMNG_is_available_for_use()){
 			state = SM_PAYOUTING_CARD;
