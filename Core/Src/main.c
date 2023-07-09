@@ -119,6 +119,7 @@ int main(void)
 //  EEPROM_test();
 //  CONFIG_test();
 //  JSMNG_test();
+//  CONFIG_clear();
   while (1)
   {
 	  STATEMACHINE_run();
