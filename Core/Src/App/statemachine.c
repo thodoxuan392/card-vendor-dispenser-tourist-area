@@ -202,6 +202,7 @@ static void SM_payouting_card(){
 	uint32_t amount = BILLACCEPTORMNG_get_amount();
 	// Update amount
 	amount -= config->card_price;
+	config->total_card++;
 	config->total_card_by_day++;
 	config->total_card_by_month++;
 	CONFIG_set(config);
@@ -209,6 +210,8 @@ static void SM_payouting_card(){
 	LCDMNG_set_working_screen(&rtc, config->amount);
 
 	TCDMNG_payout();
+	timeout = false;
+	timeout_task_id = SCH_Add_Task(SM_timeout, SM_TAKING_CARD_TIMEOUT, 0);
 	state = SM_WAIT_FOR_PAYOUTING_CARD;
 }
 
@@ -219,6 +222,7 @@ static void SM_wait_for_payouting_card(){
 		config = CONFIG_get();
 		rtc = RTC_get_time();
 		LCDMNG_set_working_screen(&rtc, config->amount);
+		SCH_Delete_Task(timeout_task_id);
 		state = SM_IDLE;
 	}
 
@@ -228,6 +232,10 @@ static void SM_wait_for_payouting_card(){
 		config = CONFIG_get();
 		rtc = RTC_get_time();
 		LCDMNG_set_working_screen(&rtc, config->amount);
+	}
+
+	if(timeout){
+		state = SM_IDLE;
 	}
 }
 

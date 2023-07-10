@@ -87,6 +87,7 @@ int main(void)
   TIMER_init();
   UART_init();
   I2C_init();
+  WATCHDOG_init();
   // Init
   CONFIG_init();
   SCHEDULERPORT_init();
@@ -120,8 +121,10 @@ int main(void)
 //  CONFIG_test();
 //  JSMNG_test();
 //  CONFIG_clear();
+//  WATCHDOG_test();
   while (1)
   {
+	  WATCHDOG_refresh();
 	  STATEMACHINE_run();
 
 //	  HAL_Delay(3000);

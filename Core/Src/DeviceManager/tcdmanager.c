@@ -261,7 +261,7 @@ static void TCDMNG_wait_for_reseting(){
 }
 
 static void TCDMNG_payouting(){
-	// Check what TCD is available for payout
+	// Check which TCD is available to pay out
 	if(prev_tcd_using == TCD_1){
 		if((TCDMNG_is_available(TCD_2) && !TCD_is_lower(TCD_2))
 			|| (TCDMNG_is_available(TCD_2) && TCD_is_lower(TCD_2) && TCD_is_lower(TCD_1))){
