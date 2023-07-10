@@ -1206,25 +1206,28 @@ static void LCDMNG_state_working(){
 		state = LCDMNG_STATE_PASSWORD;
 	}
 	else if(timeout){
-		timeout = false;
 		if(card_error_enable){
+			timeout = false;
 			curr_screen = card_error_screen;
 			LCD_draw_bitmap(card_error_screen);
 			timeout_task_id = SCH_Add_Task(LCDMNG_timeout, CARD_ERROR_SCREEN_DURATION, 0);
 			state = LCDMNG_STATE_CARD_ERROR;
 		}
 		else if(card_empty_enable){
+			timeout = false;
 			curr_screen = card_empty_screen;
 			LCD_draw_bitmap(card_empty_screen);
 			timeout_task_id = SCH_Add_Task(LCDMNG_timeout, CARD_EMPTY_SCREEN_DURATION, 0);
 			state = LCDMNG_STATE_CARD_EMPTY;
 		}
 		else if(card_lower_enable){
+			timeout = false;
 			curr_screen = card_lower_screen;
 			LCD_draw_bitmap(card_lower_screen);
 			timeout_task_id = SCH_Add_Task(LCDMNG_timeout, CARD_LOWER_SCREEN_DURATION, 0);
 			state = LCDMNG_STATE_CARD_LOWER;
 		}else if(idle_enable){
+			timeout = false;
 			LCD_draw_bitmap(logo_screen);
 			timeout_task_id = SCH_Add_Task(LCDMNG_timeout, IDLE_SCREEN_DURATION, 0);
 			state = LCDMNG_STATE_IDLE;
