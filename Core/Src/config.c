@@ -41,7 +41,7 @@ CONFIG_t * CONFIG_get(){
 
 void CONFIG_set(CONFIG_t * _config){
 	memcpy(&config, _config, sizeof(CONFIG_t));
-	EEPROM_write(EEPROM_CONFIG_ADDRESS, &config, sizeof(CONFIG_t));
+	EEPROM_write(EEPROM_CONFIG_ADDRESS, (uint8_t*)&config, sizeof(CONFIG_t));
 	CONFIG_printf();
 }
 
