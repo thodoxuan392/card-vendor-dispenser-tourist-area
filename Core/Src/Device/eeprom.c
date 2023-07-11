@@ -46,8 +46,6 @@ bool EEPROM_write(uint16_t _address, uint8_t * data, size_t data_len){
 		}
 		address = _address + data_len - remain_size;
 		memcpy(i2c_buffer_wr , &data[data_len - remain_size], write_size);
-		timeout_cnt = EEPROM_TIME_OPERATION;
-		timeout_occurred = false;
 		I2C_mem_write(EEPROM_ADDRESS, address, EEPROM_ADDRESS_SIZE,  i2c_buffer_wr, write_size);
 		HAL_Delay(5);
 		remain_size -= write_size;
