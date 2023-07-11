@@ -10,7 +10,7 @@
 #include "Device/eeprom.h"
 #include "Lib/utils/utils_logger.h"
 
-#define EEPROM_CONFIG_ADDRESS	0x00F0
+#define EEPROM_CONFIG_ADDRESS	0x0000
 
 static CONFIG_t config = {
 	.version = VERSION,
@@ -64,10 +64,10 @@ void CONFIG_clear(){
 }
 
 void CONFIG_test(){
-	CONFIG_t temp;
-	EEPROM_read(EEPROM_CONFIG_ADDRESS, &temp, sizeof(CONFIG_t));
-	EEPROM_write(EEPROM_CONFIG_ADDRESS, &config, sizeof(CONFIG_t));
-	EEPROM_read(EEPROM_CONFIG_ADDRESS, &temp, sizeof(CONFIG_t));
+	CONFIG_t * newConfig = CONFIG_get();
+	newConfig->total_card = 5;
+	newConfig->card_price = 25000;
+	CONFIG_set(newConfig);
 }
 
 static bool CONFIG_set_default(CONFIG_t * _config,  CONFIG_t *config_temp){

@@ -48,3 +48,18 @@ bool I2C_write_and_read(uint8_t address, uint8_t * data_w, size_t w_len, uint8_t
 	return success;
 }
 
+
+bool I2C_mem_write(uint8_t address, uint16_t mem_address, uint16_t mem_size, uint8_t * data_w, size_t w_len){
+	// Write
+	bool success = HAL_I2C_Mem_Write(&hi2c1, address, mem_address, mem_size, data_w, w_len, I2C_TIMEOUT);
+	return success;
+}
+
+bool I2C_mem_read(uint8_t address, uint16_t mem_address, uint16_t mem_size, uint8_t * data_w, size_t w_len){
+	// Write
+	bool success = HAL_I2C_Mem_Read(&hi2c1, address, mem_address, mem_size, data_w, w_len, I2C_TIMEOUT);
+	return success;
+}
+
+
+

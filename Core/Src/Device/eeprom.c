@@ -12,6 +12,7 @@
 #include "Hal/i2c.h"
 
 #define EEPROM_ADDRESS	0xA0
+#define EEPROM_ADDRESS_SIZE	4
 #define PAGE_SIZE	32	// 32 bytes
 
 enum {
@@ -20,37 +21,21 @@ enum {
 	EEPROM_ERASE_OP
 };
 
-static uint8_t i2c_buffer_wr[PAGE_SIZE + 2];	// 2 byte for Address
-static uint8_t i2c_buffer_rd[PAGE_SIZE + 2];	// 2 byte for Address
+static uint8_t i2c_buffer_wr[PAGE_SIZE];
+static uint8_t i2c_buffer_rd[PAGE_SIZE];
 
 
 bool EEPROM_init(){
-	// Do nothing
 	return true;
 }
 
-bool EEPROM_read(uint16_t address , uint8_t * data, size_t data_len){
-	size_t remain_size = data_len;
-	size_t read_size;
-	for(;remain_size > 0;){
-		if(remain_size > PAGE_SIZE){
-			read_size = PAGE_SIZE;
-		}else{
-			read_size = remain_size;
-		}
-		address = data_len - remain_size;
-		i2c_buffer_rd[0] = (uint8_t)(address >> 8);
-		i2c_buffer_rd[1] = (uint8_t)address ;
-		I2C_write(EEPROM_ADDRESS, &i2c_buffer_rd[0], 2);
-		I2C_read(EEPROM_ADDRESS, &i2c_buffer_rd[2], read_size);
-		memcpy(&data[data_len - remain_size], &i2c_buffer_rd[2], read_size);
-		remain_size -= read_size;
-	}
+bool EEPROM_read(uint16_t _address , uint8_t * data, size_t data_len){
+	I2C_mem_read(EEPROM_ADDRESS, _address, EEPROM_ADDRESS_SIZE, data, data_len);
 	return true;
 }
 
-bool EEPROM_write(uint16_t _address , uint8_t * data, size_t data_len){
-	uint16_t address = _address;
+bool EEPROM_write(uint16_t _address, uint8_t * data, size_t data_len){
+	uint16_t address;
 	size_t remain_size = data_len;
 	size_t write_size;
 	for(;remain_size > 0;){
@@ -59,11 +44,12 @@ bool EEPROM_write(uint16_t _address , uint8_t * data, size_t data_len){
 		}else{
 			write_size = remain_size;
 		}
-		address = data_len - remain_size;
-		i2c_buffer_wr[0] = (uint8_t)(address >> 8);
-		i2c_buffer_wr[1] = (uint8_t)address ;
-		memcpy(&i2c_buffer_wr[2], &data[data_len - remain_size], write_size);
-		I2C_write(EEPROM_ADDRESS, i2c_buffer_wr, write_size + 2);
+		address = _address + data_len - remain_size;
+		memcpy(i2c_buffer_wr , &data[data_len - remain_size], write_size);
+		timeout_cnt = EEPROM_TIME_OPERATION;
+		timeout_occurred = false;
+		I2C_mem_write(EEPROM_ADDRESS, address, EEPROM_ADDRESS_SIZE,  i2c_buffer_wr, write_size);
+		HAL_Delay(5);
 		remain_size -= write_size;
 	}
 	return true;
@@ -71,7 +57,7 @@ bool EEPROM_write(uint16_t _address , uint8_t * data, size_t data_len){
 
 bool EEPROM_test(){
 	// Write
-	char test_str[100];
+	uint8_t test_str[100];
 	for (int var = 0; var < 100; ++var) {
 		test_str[var] = var;
 	}
@@ -79,4 +65,6 @@ bool EEPROM_test(){
 	// Read
 	static uint8_t read_buf[100] = {0};
 	EEPROM_read(0x00, read_buf, 100);
+	return true;
 }
+

@@ -11,7 +11,7 @@
 #include "stdio.h"
 #include "stdbool.h"
 
-#define VERSION_MAX_LEN		6
+#define VERSION_MAX_LEN		8
 #define VERSION	 			"1.0.0"
 
 #define MANUAL_MODE_PASSWORD		"987654321"
@@ -42,4 +42,6 @@ bool CONFIG_init();
 CONFIG_t * CONFIG_get();
 void CONFIG_set(CONFIG_t *);
 void CONFIG_clear();
+void CONFIG_test();
+
 #endif /* INC_APP_CONFIG_H_ */
