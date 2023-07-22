@@ -425,6 +425,6 @@ static void TCD_timeout_tcd_2(){
 
 static void TCD_printf(TCD_HandleType_t *htcd){
 	if(htcd->prev_state != htcd->state){
-		utils_log_info(tcd_state_name[htcd->state]);
+		utils_log_info("TCD_%d: %s",htcd->id, tcd_state_name[htcd->state]);
 	}
 }
