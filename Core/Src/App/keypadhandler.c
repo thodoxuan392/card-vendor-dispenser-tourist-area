@@ -9,10 +9,15 @@
 #include "main.h"
 #include "config.h"
 #include "App/keypadhandler.h"
+#include "DeviceManager/keypadmanager.h"
 #include "DeviceManager/lcdmanager.h"
 #include "Device/rtc.h"
 #include "Lib/utils/utils_string.h"
 #include "Lib/utils/utils_logger.h"
+
+#define KEYPADHANDLER_PASSWORD_TIMEOUT	30000	// 30s
+#define KEYPADHANDLER_SETTING_TIMEOUT	60000	// 60s
+#define KEYPADHANDLER_SETTING_DATA_TIMEOUT	60000	// 60s
 
 enum {
 	FN_TIME = 1,
@@ -60,8 +65,12 @@ static char * state_name[] = {
 static uint8_t keypad_buf[KEYPADHANDLER_BUFFER_LEN];
 static size_t keypad_buf_len = 0;
 static size_t prev_keypad_buf_len = 0;
-static is_entered = false;
-static is_confirmed = false;
+static bool is_entered = false;
+static bool is_confirmed = false;
+
+// Timeout
+static bool timeout = true;
+static uint32_t timeout_task_id;
 
 static bool KEYPADHANDLER_execute(uint8_t fn, uint8_t *data, size_t data_len, uint8_t pressed_state);
 static void KEYPADHANDLER_card_prices(uint8_t *data, size_t data_len, uint8_t pressed_state);
@@ -71,12 +80,15 @@ static void KEYPADHANDLER_total_card( uint8_t *data, size_t data_len, uint8_t pr
 static void KEYPADHANDLER_delete_total_card( uint8_t *data, size_t data_len, uint8_t pressed_state);
 static void KEYPADHANDLER_total_amount( uint8_t *data, size_t data_len, uint8_t pressed_state);
 static void KEYPADHANDLER_delete_total_amount( uint8_t *data, size_t data_len, uint8_t pressed_state);
+
+// Utils
 static void KEYPADHANDLER_parse_time(void *data, size_t data_len, RTC_t * rtc);
 static uint32_t KEYPADHANDLER_cal_int(uint8_t *data, size_t data_len);
 static void KEYPADHANDLER_int_to_str(uint8_t * str, uint8_t *data, size_t data_len);
 static bool KEYPADHANDLER_check_password_valid(uint8_t *data, size_t data_len, char* password);
 static bool KEYPADHANDLER_clear_data();
 static void KEYPADHANDLER_printf();
+static void KEYPADHANDLER_timeout();
 
 bool KEYPADHANDLER_init(){
 
@@ -88,34 +100,67 @@ bool KEYPADHANDLER_run(){
 	switch (state) {
 		case KEYPADHANDLER_STATE_NOT_IN_SETTING:
 			if(KEYPADMNG_is_entered_long() && KEYPADMNG_is_cancelled_long()){
+				utils_log_info("is entered long\r\n");
 				KEYPADMNG_clear_entered();
 				KEYPADMNG_clear_cancelled();
 				KEYPADHANDLER_clear_data();
 				LCDMNG_set_password_screen(NULL, 0, KEYPADHANDLER_PASSWD_NOT_PRESSED, false);
+				// Start Password timeout
+				timeout = false;
+				timeout_task_id = SCH_Add_Task(KEYPADHANDLER_timeout, KEYPADHANDLER_PASSWORD_TIMEOUT, 0);
 				state = KEYPADHANDLER_STATE_PASSWORD;
 			}
 			break;
 		case KEYPADHANDLER_STATE_PASSWORD:
 			KEYPADMNG_get_data(keypad_buf, &keypad_buf_len);
 			if(keypad_buf_len > prev_keypad_buf_len){
+				// Restart timeout
+				SCH_Delete_Task(timeout_task_id);
+				timeout = false;
+				timeout_task_id = SCH_Add_Task(KEYPADHANDLER_timeout, KEYPADHANDLER_PASSWORD_TIMEOUT, 0);
+				// Update buffer len
 				prev_keypad_buf_len = keypad_buf_len;
 				LCDMNG_set_password_screen(keypad_buf, keypad_buf_len, KEYPADHANDLER_PASSWD_PRESSED_BUT_NOT_ENTERED, false);
 			}
 
+			// Entered case
 			if(KEYPADMNG_is_entered()){
+				// Clear timeout
+				SCH_Delete_Task(timeout_task_id);
+				// Check password
 				config = CONFIG_get();
 				if(KEYPADHANDLER_check_password_valid(keypad_buf, keypad_buf_len, config->password)){
+					LCDMNG_clear_password_screen();
 					LCDMNG_set_setting_screen();
 					utils_log_info("Enter setting mode\r\n");
+					// Start setting screen timeout
+					timeout = false;
+					timeout_task_id = SCH_Add_Task(KEYPADHANDLER_timeout, KEYPADHANDLER_SETTING_TIMEOUT, 0);
 					state = KEYPADHANDLER_STATE_IN_SETTING;
 				}else{
+					// Restart password timeout
+					timeout = false;
+					timeout_task_id = SCH_Add_Task(KEYPADHANDLER_timeout, KEYPADHANDLER_PASSWORD_TIMEOUT, 0);
 					LCDMNG_set_password_screen(keypad_buf, keypad_buf_len, KEYPADHANDLER_PASSWD_ENTERED, false);
 				}
 				KEYPADMNG_clear_entered();
 				KEYPADHANDLER_clear_data();
 			}
+
+			// Cancelled case
 			if(KEYPADMNG_is_cancelled()){
+				// Clear timeout
+				SCH_Delete_Task(timeout_task_id);
 				KEYPADMNG_clear_cancelled();
+				// Clear buffered data
+				state = KEYPADHANDLER_STATE_NOT_IN_SETTING;
+				LCDMNG_clear_password_screen();
+				KEYPADHANDLER_clear_data();
+			}
+
+			// Timeout case
+			if(timeout){
+				timeout = false;
 				// Clear buffered data
 				state = KEYPADHANDLER_STATE_NOT_IN_SETTING;
 				LCDMNG_clear_password_screen();
@@ -123,29 +168,67 @@ bool KEYPADHANDLER_run(){
 			}
 			break;
 		case KEYPADHANDLER_STATE_IN_SETTING:
+			// Cancelled case
 			if (KEYPADMNG_is_cancelled()){
+				// Clear timeout
+				SCH_Delete_Task(timeout_task_id);
+				// Clear data
 				KEYPADMNG_clear_cancelled();
 				KEYPADHANDLER_clear_data();
 				LCDMNG_clear_setting_screen();
 				state = KEYPADHANDLER_STATE_NOT_IN_SETTING;
 			}
+
+			// Setting data case
 			KEYPADMNG_get_data(keypad_buf, &keypad_buf_len);
 			if(keypad_buf_len > 0){
+				// Clear timeout
+				SCH_Delete_Task(timeout_task_id);
 				if(keypad_buf[0] >= 0 && keypad_buf[0] <= 9){
+					// Clear setting screen
+					LCDMNG_clear_setting_screen();
 					fn = keypad_buf[0];
 					KEYPADHANDLER_execute(fn, NULL , 0, KEYPADHANDLER_SETTING_DATA_NOT_PRESSED);
-					KEYPADHANDLER_clear_data();
+					// Start setting data timeout
+					timeout = false;
+					SCH_Add_Task(KEYPADHANDLER_timeout, KEYPADHANDLER_SETTING_DATA_TIMEOUT, 0);
 					state = KEYPADHANDLER_STATE_IN_SETTING_DATA;
+				}else{
+					// Restart setting timeout
+					timeout = false;
+					SCH_Add_Task(KEYPADHANDLER_timeout, KEYPADHANDLER_SETTING_TIMEOUT, 0);
 				}
+				KEYPADHANDLER_clear_data();
+			}
+
+			// Timeout case
+			if(timeout){
+				timeout = false;
+				KEYPADHANDLER_clear_data();
+				LCDMNG_clear_setting_screen();
+				state = KEYPADHANDLER_STATE_NOT_IN_SETTING;
 			}
 			break;
 		case KEYPADHANDLER_STATE_IN_SETTING_DATA:
+			// Data case
 			KEYPADMNG_get_data(keypad_buf, &keypad_buf_len);
 			if(keypad_buf_len > prev_keypad_buf_len){
+				// Restart timeout
+				SCH_Delete_Task(timeout_task_id);
+				timeout = false;
+				timeout_task_id = SCH_Add_Task(KEYPADHANDLER_timeout, KEYPADHANDLER_SETTING_DATA_TIMEOUT, 0);
+				// Check have new key
 				prev_keypad_buf_len = keypad_buf_len;
 				KEYPADHANDLER_execute(fn, keypad_buf, keypad_buf_len , KEYPADHANDLER_SETTING_DATA_PRESSED_BUT_NOT_ENTERED);
 			}
+
+			// Entered case
 			if(KEYPADMNG_is_entered()){
+				// Restart timeout
+				SCH_Delete_Task(timeout_task_id);
+				timeout = false;
+				timeout_task_id = SCH_Add_Task(KEYPADHANDLER_timeout, KEYPADHANDLER_SETTING_DATA_TIMEOUT, 0);
+				// Clear entered
 				KEYPADMNG_clear_entered();
 				if(!is_entered){
 					is_entered = true;
@@ -155,18 +238,39 @@ bool KEYPADHANDLER_run(){
 					KEYPADHANDLER_execute(fn, keypad_buf, keypad_buf_len , KEYPADHANDLER_SETTING_DATA_CONFIRMED);
 				}
 			}
+
+			// Cancelled case
 			if (KEYPADMNG_is_cancelled()){
 				is_entered = false;
 				if(keypad_buf_len == 0){
+					// Clear timeout
+					SCH_Delete_Task(timeout_task_id);
 					// Exit screen
 					LCDMNG_clear_setting_data_screen();
+					LCDMNG_set_setting_screen();
 					state = KEYPADHANDLER_STATE_IN_SETTING;
 				}else{
+					// Restart timeout
+					SCH_Delete_Task(timeout_task_id);
+					timeout = false;
+					timeout_task_id = SCH_Add_Task(KEYPADHANDLER_timeout, KEYPADHANDLER_SETTING_DATA_TIMEOUT, 0);
 					// Just clear data
 					KEYPADHANDLER_clear_data();
 					KEYPADHANDLER_execute(fn, keypad_buf, keypad_buf_len , KEYPADHANDLER_SETTING_DATA_CANCELLED);
 				}
 				KEYPADMNG_clear_cancelled();
+			}
+
+			// Timeout case
+			if(timeout){
+				timeout = false;
+				is_entered = false;
+				KEYPADHANDLER_clear_data();
+				// Exit screen
+				LCDMNG_clear_setting_data_screen();
+				state = KEYPADHANDLER_STATE_NOT_IN_SETTING;
+				// Start setting timeout
+				SCH_Add_Task(KEYPADHANDLER_timeout, KEYPADHANDLER_SETTING_TIMEOUT, 0);
 			}
 			break;
 		default:
@@ -174,6 +278,10 @@ bool KEYPADHANDLER_run(){
 	}
 	KEYPADHANDLER_printf();
 	prev_state = state;
+}
+
+bool KEYPADHANDLER_is_not_in_setting(){
+	return (state == KEYPADHANDLER_STATE_NOT_IN_SETTING);
 }
 
 static bool KEYPADHANDLER_execute(uint8_t fn, uint8_t *data, size_t data_len, uint8_t pressed_state){
@@ -422,5 +530,9 @@ static void KEYPADHANDLER_printf(){
 	if(prev_state != state){
 		utils_log_info(state_name[state]);
 	}
+}
+
+static void KEYPADHANDLER_timeout(){
+	timeout = true;
 }
 

@@ -26,7 +26,8 @@ enum {
 	SM_PAYOUTING_CARD,
 	SM_WAIT_FOR_PAYOUTING_CARD,
 	SM_CALLBACKING_CARD,
-	SM_WAIT_FOR_CALLBACKING_CARD
+	SM_WAIT_FOR_CALLBACKING_CARD,
+	SM_MAINTENANCE
 };
 
 static void SM_init();
@@ -37,6 +38,8 @@ static void SM_payouting_card();
 static void SM_wait_for_payouting_card();
 static void SM_callbacking_card();
 static void SM_wait_for_callbacking_card();
+static void SM_maintenance();
+// Utils
 static void SM_update_total_card_by_time(RTC_t *rtc , CONFIG_t *config);
 static void SM_timeout();
 static void SM_timeout_for_update();
@@ -54,6 +57,7 @@ static const char * state_name[] = {
 		[SM_WAIT_FOR_PAYOUTING_CARD] = "SM_WAIT_FOR_PAYOUTING_CARD\r\n",
 		[SM_CALLBACKING_CARD] = "SM_CALLBACKING_CARD\r\n",
 		[SM_WAIT_FOR_CALLBACKING_CARD] = "SM_WAIT_FOR_CALLBACKING_CARD\r\n",
+		[SM_MAINTENANCE] = "SM_MAINTENANCE\r\n",
 };
 static bool timeout_for_update = true;
 static bool timeout = false;
@@ -96,6 +100,9 @@ bool STATEMACHINE_run(){
 			break;
 		case SM_WAIT_FOR_CALLBACKING_CARD:
 			SM_wait_for_callbacking_card();
+			break;
+		case SM_MAINTENANCE:
+			SM_maintenance();
 			break;
 		default:
 			break;
@@ -153,13 +160,22 @@ static void SM_idle(){
 			BILLACCEPTORMNG_enable();
 		}
 	}
-
-
 	// Check if Card is lower
 	if(TCDMNG_is_lower()){
 		LCDMNG_set_card_lower_screen();
 	}else{
 		LCDMNG_clear_card_lower_screen();
+	}
+
+	// Check if maintenance mode
+	if(!KEYPADHANDLER_is_not_in_setting()){
+		// Disable Bill acceptor
+		if(BILLACCEPTORMNG_is_enabled()){
+			utils_log_warn("Disable BillAcceptor because it's in maintenance mode\r\n");
+			BILLACCEPTORMNG_disable();
+		}
+		state = SM_MAINTENANCE;
+		return;
 	}
 
 	// Check if BILL is accepted
@@ -240,9 +256,21 @@ static void SM_wait_for_payouting_card(){
 }
 
 static void SM_callbacking_card(){
+
 }
 
 static void SM_wait_for_callbacking_card(){
+
+}
+
+static void SM_maintenance(){
+	if(KEYPADHANDLER_is_not_in_setting()){
+		if(!BILLACCEPTORMNG_is_enabled()){
+			utils_log_warn("Renable BillAcceptor because it's is not in maintenance more\r\n");
+			BILLACCEPTORMNG_enable();
+		}
+		state = SM_IDLE;
+	}
 }
 
 static void SM_update_total_card_by_time(RTC_t *rtc , CONFIG_t *config){

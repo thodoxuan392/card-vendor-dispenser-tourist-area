@@ -126,8 +126,6 @@ int main(void)
   {
 	  WATCHDOG_refresh();
 	  STATEMACHINE_run();
-
-//	  HAL_Delay(3000);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

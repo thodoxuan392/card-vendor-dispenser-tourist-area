@@ -16,6 +16,8 @@
 
 bool KEYPADHANDLER_init();
 bool KEYPADHANDLER_run();
+bool KEYPADHANDLER_is_not_in_setting();
+
 
 
 #endif /* INC_APP_KEYPADHANDLER_H_ */

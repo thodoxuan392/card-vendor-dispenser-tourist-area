@@ -1242,9 +1242,8 @@ static void LCDMNG_state_password(){
 		LCD_draw_bitmap(setting_screen);
 		state = LCDMNG_STATE_SETTING;
 	}
-	if(!password_enable || timeout){
+	else if(!password_enable){
 		curr_screen = working_screen_temp;
-		password_enable = false;
 		// Switch to Working screen
 		timeout = false;
 		LCD_draw_bitmap(working_screen_temp);
@@ -1255,8 +1254,14 @@ static void LCDMNG_state_password(){
 }
 
 static void LCDMNG_state_setting(){
+	if(setting_data_enable){
+		curr_screen = setting_data_screen;
+		// Switch to Working screen
+		LCD_draw_bitmap(setting_data_screen);
+		state = LCDMNG_STATE_SETTING_DATA;
+	}
 	// Only get out of this screen when setting is false <=> press exit
-	if(!setting_enable){
+	else if(!setting_enable){
 		curr_screen = working_screen_temp;
 		// Disable password screen too
 		password_enable = false;
@@ -1267,12 +1272,7 @@ static void LCDMNG_state_setting(){
 		timeout_task_id = SCH_Add_Task(LCDMNG_timeout, WORKING_SCREEN_DURATION, 0);
 		state = LCDMNG_STATE_WORKING;
 	}
-	if(setting_data_enable){
-		curr_screen = setting_data_screen;
-		// Switch to Working screen
-		LCD_draw_bitmap(setting_data_screen);
-		state = LCDMNG_STATE_SETTING_DATA;
-	}
+
 }
 
 static void LCDMNG_state_setting_data(){
@@ -1459,9 +1459,6 @@ void LCDMNG_set_password_screen(uint8_t *password, size_t password_len, uint8_t 
 			break;
 	}
 	LCD_draw_bitmap(password_screen);
-	timeout = false;
-	SCH_Delete_Task(timeout_task_id);
-	timeout_task_id = SCH_Add_Task(LCDMNG_timeout, PASSWORD_SCREEN_DURATION, 0);
 	password_enable = true;
 }
 
