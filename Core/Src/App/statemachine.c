@@ -198,7 +198,7 @@ static void SM_idle(){
 			&& amount > 0
 			&& config->card_price > 0){
 		LCDMNG_clear_idle_screen();
-		if(TCDMNG_is_idle() && TCDMNG_is_available_for_use()){
+		if(TCDMNG_is_in_idle() && TCDMNG_is_available_for_use()){
 			state = SM_PAYOUTING_CARD;
 		}
 		return;
@@ -212,19 +212,6 @@ static void SM_bill_accepted(){
 }
 
 static void SM_payouting_card(){
-	// LCD Manager set IDLE screen
-	CONFIG_t *config = CONFIG_get();
-	RTC_t rtc = RTC_get_time();
-	uint32_t amount = BILLACCEPTORMNG_get_amount();
-	// Update amount
-	amount -= config->card_price;
-	config->total_card++;
-	config->total_card_by_day++;
-	config->total_card_by_month++;
-	CONFIG_set(config);
-	BILLACCEPTORMNG_set_amount(amount);
-	LCDMNG_set_working_screen(&rtc, config->amount);
-
 	TCDMNG_payout();
 	timeout = false;
 	timeout_task_id = SCH_Add_Task(SM_timeout, SM_TAKING_CARD_TIMEOUT, 0);
@@ -234,9 +221,25 @@ static void SM_payouting_card(){
 static void SM_wait_for_payouting_card(){
 	CONFIG_t *config;
 	RTC_t rtc;
-	if(TCDMNG_is_idle()){
+
+	if(TCDMNG_is_in_error()){
+		// Should switch to callback card state but currently it's call backed automatically
+		// Switch to IDLE again
+		state = SM_IDLE;
+	}
+
+	// In case idle without any error -> Deduce amount and update to screen
+	if(TCDMNG_is_in_idle()){
 		config = CONFIG_get();
 		rtc = RTC_get_time();
+		uint32_t amount = BILLACCEPTORMNG_get_amount();
+		// Update amount
+		amount -= config->card_price;
+		config->total_card++;
+		config->total_card_by_day++;
+		config->total_card_by_month++;
+		CONFIG_set(config);
+		BILLACCEPTORMNG_set_amount(amount);
 		LCDMNG_set_working_screen(&rtc, config->amount);
 		SCH_Delete_Task(timeout_task_id);
 		state = SM_IDLE;

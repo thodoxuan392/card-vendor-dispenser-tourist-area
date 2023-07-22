@@ -17,7 +17,7 @@
 #define CALLBACK_DURATION				300	//300ms
 #define CARD_TO_PLACE_CARD_TIMEOUT		10000	// 3 seconds
 #define TAKING_CARD_TIMEOUT				60000	// 3 minutes
-#define ERROR_CHECK_INTERVAL			10000	//500ms
+#define ERROR_CHECK_INTERVAL			3000	// 3s
 #define UPDATING_STATUS_TIME_WHEN_LOWER			5000	//7000s
 #define UPDATING_STATUS_TIME_WHEN_NORMAL		100	//100ms
 
@@ -160,12 +160,16 @@ uint8_t TCDMNG_get_state(){
 	return tcdmng_state;
 }
 
-bool TCDMNG_is_idle(){
+bool TCDMNG_is_in_idle(){
 	return (tcdmng_state == TCDMNG_IDLE);
 }
 
 bool TCDMNG_is_in_processing(){
 	return (tcdmng_state != TCDMNG_IDLE && tcdmng_state != TCDMNG_ERROR);
+}
+
+bool TCDMNG_is_in_error(){
+	return (tcdmng_state == TCDMNG_ERROR);
 }
 
 void TCDMNG_reset(){
