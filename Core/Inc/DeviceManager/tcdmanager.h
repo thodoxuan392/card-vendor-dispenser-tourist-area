@@ -13,17 +13,14 @@
 #include "string.h"
 
 typedef struct {
-	struct {
-		bool is_error;
-		bool is_lower;
-		bool is_empty;
-	}TCD_1;
+	bool is_error;
+	bool is_lower;
+	bool is_empty;
+}TCD_status_t;
 
-	struct {
-		bool is_error;
-		bool is_lower;
-		bool is_empty;
-	}TCD_2;
+typedef struct {
+	TCD_status_t TCD_1;
+	TCD_status_t TCD_2;
 }TCDMNG_Status_t;
 
 void TCDMNG_init();

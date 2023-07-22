@@ -22,423 +22,409 @@
 #define UPDATING_STATUS_TIME_WHEN_NORMAL		100	//100ms
 
 
+
 enum {
-	TCDMNG_WAIT_FOR_INIT,
-	TCDMNG_IDLE,
-	TCDMNG_RESETING,
-	TCDMNG_WAIT_FOR_RESETING,
-	TCDMNG_PAYOUTING,
-	TCDMNG_WAIT_FOR_PAYOUTING,
-	TCDMNG_WAIT_FOR_CARD_IN_PLACE,
-	TCDMNG_WAIT_FOR_TAKING_CARD,
-	TCDMNG_CALLBACKING,
-	TCDMNG_WAIT_FOR_CALLBACKING,
-	TCDMNG_WAIT_FOR_UPDATING_STATUS,
-	TCDMNG_ERROR
+	TCD_IDLE,
+	TCD_RESETING,
+	TCD_WAIT_FOR_RESETING,
+	TCD_PAYOUTING,
+	TCD_WAIT_FOR_PAYOUTING,
+	TCD_WAIT_FOR_CARD_IN_PLACE,
+	TCD_WAIT_FOR_TAKING_CARD,
+	TCD_CALLBACKING,
+	TCD_WAIT_FOR_CALLBACKING,
+	TCD_WAIT_FOR_UPDATING_STATUS,
+	TCD_ERROR
 };
 
-static const char * tcdmng_state_name[] = {
-		[TCDMNG_WAIT_FOR_INIT] = "TCDMNG_WAIT_FOR_INIT\r\n",
-		[TCDMNG_IDLE] = "TCDMNG_IDLE\r\n",
-		[TCDMNG_RESETING] = "TCDMNG_RESETING\r\n",
-		[TCDMNG_WAIT_FOR_RESETING] = "TCDMNG_WAIT_FOR_RESETING\r\n",
-		[TCDMNG_PAYOUTING] = "TCDMNG_PAYOUTING\r\n",
-		[TCDMNG_WAIT_FOR_PAYOUTING] = "TCDMNG_WAIT_FOR_PAYOUTING\r\n",
-		[TCDMNG_WAIT_FOR_CARD_IN_PLACE] = "TCDMNG_WAIT_FOR_CARD_IN_PLACE\r\n",
-		[TCDMNG_WAIT_FOR_TAKING_CARD] = "TCDMNG_WAIT_FOR_TAKING_CARD\r\n",
-		[TCDMNG_CALLBACKING] = "TCDMNG_CALLBACKING\r\n",
-		[TCDMNG_WAIT_FOR_CALLBACKING] = "TCDMNG_WAIT_FOR_CALLBACKING\r\n",
-		[TCDMNG_WAIT_FOR_UPDATING_STATUS] = "TCDMNG_WAIT_FOR_UPDATING_STATUS\r\n",
-		[TCDMNG_ERROR] = "TCDMNG_ERROR\r\n",
+typedef struct{
+	TCD_id_t id;
+	// Status
+	uint8_t prev_state;
+	uint8_t state;
+	// Status
+	TCD_status_t status;
+	// Action
+	bool payout_enable;
+	bool callback_enable;
+	bool reset_enable;
+	// Timeout
+	bool timeout_task_id;
+	bool timeout;
+
+}TCD_HandleType_t;
+
+static const char * tcd_state_name[] = {
+		[TCD_IDLE] = "TCD_IDLE\r\n",
+		[TCD_RESETING] = "TCD_RESETING\r\n",
+		[TCD_WAIT_FOR_RESETING] = "TCD_WAIT_FOR_RESETING\r\n",
+		[TCD_PAYOUTING] = "TCD_PAYOUTING\r\n",
+		[TCD_WAIT_FOR_PAYOUTING] = "TCD_WAIT_FOR_PAYOUTING\r\n",
+		[TCD_WAIT_FOR_CARD_IN_PLACE] = "TCD_WAIT_FOR_CARD_IN_PLACE\r\n",
+		[TCD_WAIT_FOR_TAKING_CARD] = "TCD_WAIT_FOR_TAKING_CARD\r\n",
+		[TCD_CALLBACKING] = "TCD_CALLBACKING\r\n",
+		[TCD_WAIT_FOR_CALLBACKING] = "TCD_WAIT_FOR_CALLBACKING\r\n",
+		[TCD_WAIT_FOR_UPDATING_STATUS] = "TCD_WAIT_FOR_UPDATING_STATUS\r\n",
+		[TCD_ERROR] = "TCD_ERROR\r\n",
 };
 
-static uint8_t tcdmng_prev_state = TCDMNG_WAIT_FOR_INIT;
-static uint8_t tcdmng_state = TCDMNG_WAIT_FOR_INIT;
-static TCDMNG_Status_t status = {
-	.TCD_1 = {
+static TCD_id_t tcd_using = TCD_1;
+
+// TCD Device
+static TCD_HandleType_t htcd_1 = {
+	.id = TCD_1,
+	.prev_state = TCD_IDLE,
+	.state = TCD_IDLE,
+	.status = {
 		.is_error = true,
 		.is_lower = true,
 		.is_empty = true
 	},
-	.TCD_2 = {
+	.payout_enable = false,
+	.callback_enable = false,
+	.reset_enable = false,
+	.timeout_task_id = 0,
+	.timeout = false
+};
+
+static TCD_HandleType_t htcd_2 = {
+	.id = TCD_2,
+	.prev_state = TCD_IDLE,
+	.state = TCD_IDLE,
+	.status = {
 		.is_error = true,
 		.is_lower = true,
 		.is_empty = true
-	}
+	},
+	.payout_enable = false,
+	.callback_enable = false,
+	.reset_enable = false,
+	.timeout_task_id = 0,
+	.timeout = false
 };
 
-static TCD_id_t prev_tcd_using = TCD_1;
-static TCD_id_t tcd_using = TCD_1;
-
-// Action
-static bool payout_enable = false;
-static bool callback_enable = false;
-static bool reset_enable = false;
-
-// Timeout
-static uint32_t task_id;
-static bool timeout_flag = false;
-static bool timeout_for_init_flag = false;
-
-static uint32_t updating_status_time = UPDATING_STATUS_TIME_WHEN_NORMAL;
-
 // Private function
-static void TCDMNG_wait_for_init();
-static void TCDMNG_idle();
-static void TCDMNG_reseting();
-static void TCDMNG_wait_for_reseting();
-static void TCDMNG_payouting();
-static void TCDMNG_wait_for_payouting();
-static void TCDMNG_wait_for_card_in_place();
-static void TCDMNG_wait_for_taking_card();
-static void TCDMNG_callbacking();
-static void TCDMNG_wait_for_callbacking();
-static void TCDMNG_wait_for_updating_status();
-static void TCDMNG_error();
-static void TCDMNG_update_status();
-static bool TCDMNG_is_available(TCD_id_t tcd);
-static void TCDMNG_timeout();
-static void TCDMNG_timeout_for_init();
-static void TCDMNG_printf();
+static void TCD_run(TCD_HandleType_t *htcd);
+static void TCD_idle(TCD_HandleType_t *htcd);
+static void TCD_reseting(TCD_HandleType_t *htcd);
+static void TCD_wait_for_reseting(TCD_HandleType_t *htcd);
+static void TCD_payouting(TCD_HandleType_t *htcd);
+static void TCD_wait_for_payouting(TCD_HandleType_t *htcd);
+static void TCD_wait_for_card_in_place(TCD_HandleType_t *htcd);
+static void TCD_wait_for_taking_card(TCD_HandleType_t *htcd);
+static void TCD_callbacking(TCD_HandleType_t *htcd);
+static void TCD_wait_for_callbacking(TCD_HandleType_t *htcd);
+static void TCD_wait_for_updating_status(TCD_HandleType_t *htcd);
+static void TCD_error(TCD_HandleType_t *htcd);
+static void TCD_update_status(TCD_HandleType_t *htcd);
+static bool TCD_is_available(TCD_HandleType_t *htcd);
+static void TCD_timeout_tcd_1();
+static void TCD_timeout_tcd_2();
+static void TCD_printf(TCD_HandleType_t *htcd);
 
 void TCDMNG_init(){
-	// Do something
-	SCH_Add_Task(TCDMNG_timeout_for_init, INIT_DURATION, 0);
 }
 
-
 void TCDMNG_run(){
-	TCDMNG_update_status();
-	switch (tcdmng_state) {
-		case TCDMNG_WAIT_FOR_INIT:
-			TCDMNG_wait_for_init();
-			break;
-		case TCDMNG_IDLE:
-			TCDMNG_idle();
-			break;
-		case TCDMNG_RESETING:
-			TCDMNG_reseting();
-			break;
-		case TCDMNG_WAIT_FOR_RESETING:
-			TCDMNG_wait_for_reseting();
-			break;
-		case TCDMNG_PAYOUTING:
-			TCDMNG_payouting();
-			break;
-		case TCDMNG_WAIT_FOR_PAYOUTING:
-			TCDMNG_wait_for_payouting();
-			break;
-		case TCDMNG_WAIT_FOR_CARD_IN_PLACE:
-			TCDMNG_wait_for_card_in_place();
-			break;
-		case TCDMNG_WAIT_FOR_TAKING_CARD:
-			TCDMNG_wait_for_taking_card();
-			break;
-		case TCDMNG_CALLBACKING:
-			TCDMNG_callbacking();
-			break;
-		case TCDMNG_WAIT_FOR_CALLBACKING:
-			TCDMNG_wait_for_callbacking();
-			break;
-		case TCDMNG_WAIT_FOR_UPDATING_STATUS:
-			TCDMNG_wait_for_updating_status();
-			break;
-		case TCDMNG_ERROR:
-			TCDMNG_error();
-			break;
-		default:
-			break;
-	}
-	TCDMNG_printf();
-	tcdmng_prev_state = tcdmng_state;
+	TCD_run(&htcd_1);
+	TCD_run(&htcd_2);
 }
 
 TCDMNG_Status_t TCDMNG_get_status(){
+	TCDMNG_Status_t status;
+	status.TCD_1 = htcd_1.status;
+	status.TCD_2 = htcd_2.status;
 	return status;
-}
-uint8_t TCDMNG_get_state(){
-	return tcdmng_state;
 }
 
 bool TCDMNG_is_in_idle(){
-	return (tcdmng_state == TCDMNG_IDLE);
+	return (htcd_1.state == TCD_IDLE || htcd_2.state == TCD_IDLE);
 }
 
 bool TCDMNG_is_in_processing(){
-	return (tcdmng_state != TCDMNG_IDLE && tcdmng_state != TCDMNG_ERROR);
+	return (htcd_1.state != TCD_IDLE && htcd_2.state != TCD_ERROR);
 }
 
 bool TCDMNG_is_in_error(){
-	return (tcdmng_state == TCDMNG_ERROR);
+	return (htcd_1.state == TCD_ERROR || htcd_1.state == TCD_ERROR);
 }
 
 void TCDMNG_reset(){
-	reset_enable = true;
+	// Reset both of tcd
+	htcd_1.reset_enable = true;
+	htcd_2.reset_enable = true;
 }
 
 void TCDMNG_payout(){
-	payout_enable = true;
+	if(tcd_using == TCD_1){
+		if((TCD_is_available(&htcd_1) && !TCD_is_lower(TCD_2))
+			|| (TCD_is_available(&htcd_2) && TCD_is_lower(TCD_2) && TCD_is_lower(TCD_1))){
+			htcd_2.payout_enable = true;
+			tcd_using = TCD_2;
+		}
+	}
+	else if(tcd_using == TCD_2){
+		if((TCD_is_available(&htcd_2) && !TCD_is_lower(TCD_1))
+			|| (TCD_is_available(&htcd_1) && TCD_is_lower(TCD_1) && TCD_is_lower(TCD_2))){
+			htcd_1.payout_enable = true;
+			tcd_using = TCD_1;
+		}
+	}else {
+		utils_log_error("Cannot callback because don't any tcd is used before\r\n");
+	}
 }
 
 void TCDMNG_callback(){
-	callback_enable = true;
+	if(tcd_using == TCD_1){
+		if((TCD_is_available(&htcd_1) && !TCD_is_lower(TCD_2))
+			|| (TCD_is_available(&htcd_2) && TCD_is_lower(TCD_2) && TCD_is_lower(TCD_1))){
+			htcd_2.callback_enable = true;
+			tcd_using = TCD_2;
+		}
+	}
+	else if(tcd_using == TCD_2){
+		if((TCD_is_available(&htcd_2) && !TCD_is_lower(TCD_1))
+			|| (TCD_is_available(&htcd_1) && TCD_is_lower(TCD_1) && TCD_is_lower(TCD_2))){
+			htcd_1.callback_enable = true;
+			tcd_using = TCD_1;
+		}
+	}
+	else {
+		utils_log_error("Cannot callback because don't any tcd is used before\r\n");
+	}
 }
 
 
 bool TCDMNG_is_error(){
-	TCDMNG_update_status();
-	return (status.TCD_1.is_error) &&
-			(status.TCD_2.is_error);
+	TCD_update_status(&htcd_1);
+	TCD_update_status(&htcd_2);
+	return (htcd_1.status.is_error) &&
+			(htcd_2.status.is_error);
 }
 
 bool TCDMNG_is_lower(){
-	TCDMNG_update_status();
-	return (status.TCD_1.is_lower && status.TCD_2.is_lower);
+	TCD_update_status(&htcd_1);
+	TCD_update_status(&htcd_2);
+	return (htcd_1.status.is_lower && htcd_2.status.is_lower);
 }
 
 bool TCDMNG_is_empty(){
-	TCDMNG_update_status();
-	return (status.TCD_1.is_empty && status.TCD_2.is_empty);
+	TCD_update_status(&htcd_1);
+	TCD_update_status(&htcd_2);
+	return (htcd_1.status.is_empty && htcd_2.status.is_empty);
 }
 
 bool TCDMNG_is_available_for_use(){
-	return (TCDMNG_is_available(TCD_1) || TCDMNG_is_available(2));
+	return (TCD_is_available(&htcd_1) || TCD_is_available(&htcd_2));
 }
 
 
-static bool TCDMNG_is_available(TCD_id_t tcd){
-	TCDMNG_update_status();
-	if(tcd == TCD_1){
-		return (!status.TCD_1.is_empty &&
-				!status.TCD_1.is_error);
-	}else {
-		return (!status.TCD_2.is_empty &&
-				!status.TCD_2.is_error);
+static bool TCD_is_available(TCD_HandleType_t *htcd){
+	TCD_update_status(htcd);
+	return (!htcd->status.is_empty &&
+			!htcd->status.is_error);
+}
+
+static void TCD_run(TCD_HandleType_t *htcd){
+	TCD_update_status(htcd);
+	switch (htcd->state){
+		case TCD_IDLE:
+			TCD_idle(htcd);
+			break;
+		case TCD_RESETING:
+			TCD_reseting(htcd);
+			break;
+		case TCD_WAIT_FOR_RESETING:
+			TCD_wait_for_reseting(htcd);
+			break;
+		case TCD_PAYOUTING:
+			TCD_payouting(htcd);
+			break;
+		case TCD_WAIT_FOR_PAYOUTING:
+			TCD_wait_for_payouting(htcd);
+			break;
+		case TCD_WAIT_FOR_CARD_IN_PLACE:
+			TCD_wait_for_card_in_place(htcd);
+			break;
+		case TCD_WAIT_FOR_TAKING_CARD:
+			TCD_wait_for_taking_card(htcd);
+			break;
+		case TCD_CALLBACKING:
+			TCD_callbacking(htcd);
+			break;
+		case TCD_WAIT_FOR_CALLBACKING:
+			TCD_wait_for_callbacking(htcd);
+			break;
+		case TCD_WAIT_FOR_UPDATING_STATUS:
+			TCD_wait_for_updating_status(htcd);
+			break;
+		case TCD_ERROR:
+			TCD_error(htcd);
+			break;
+		default:
+			break;
+	}
+	TCD_printf(htcd);
+	htcd->prev_state = htcd->state;
+}
+
+
+static void TCD_idle(TCD_HandleType_t *htcd){
+	if (htcd->status.is_error){
+		SCH_Delete_Task(htcd->timeout_task_id);
+		htcd->timeout = false;
+		void * timeout_func = htcd->id == TCD_1? TCD_timeout_tcd_1 : TCD_timeout_tcd_2;
+		htcd->timeout_task_id = SCH_Add_Task(timeout_func, ERROR_CHECK_INTERVAL, 0);
+		htcd->state = TCD_ERROR;
+	}
+	else if(htcd->reset_enable){
+		htcd->reset_enable = false;
+		htcd->state = TCD_RESETING;
+	}
+	else if(htcd->payout_enable){
+		htcd->payout_enable = false;
+		htcd->state = TCD_PAYOUTING;
+	}
+	else if (htcd->callback_enable){
+		htcd->callback_enable = false;
+		htcd->state = TCD_CALLBACKING;
 	}
 }
 
-static void TCDMNG_wait_for_init(){
-	if(timeout_for_init_flag){
-		tcdmng_state = TCDMNG_IDLE;
-	}
-}
-
-
-
-
-static void TCDMNG_idle(){
-	if (TCDMNG_is_error()){
-		SCH_Delete_Task(task_id);
-		timeout_flag = false;
-		task_id = SCH_Add_Task(TCDMNG_timeout, ERROR_CHECK_INTERVAL, 0);
-		tcdmng_state = TCDMNG_ERROR;
-	}
-	else if(reset_enable){
-		reset_enable = false;
-		tcdmng_state = TCDMNG_RESETING;
-	}
-	else if(payout_enable){
-		payout_enable = false;
-		tcdmng_state = TCDMNG_PAYOUTING;
-	}
-	else if (callback_enable){
-		callback_enable = false;
-		tcdmng_state = TCDMNG_CALLBACKING;
-	}
-}
-
-static void TCDMNG_reseting(){
-	TCD_reset(TCD_1, true);
-	TCD_reset(TCD_2, true);
+static void TCD_reseting(TCD_HandleType_t *htcd){
+	TCD_reset(htcd->id, true);
 	// How long to enable payout signal
-	SCH_Delete_Task(task_id);
-	timeout_flag = false;
-	task_id = SCH_Add_Task(TCDMNG_timeout, PAYOUT_DURATION, 0);
-	tcdmng_state = TCDMNG_WAIT_FOR_RESETING;
+	SCH_Delete_Task(htcd->timeout_task_id);
+	htcd->timeout = false;
+	void * timeout_func = htcd->id == TCD_1? TCD_timeout_tcd_1 : TCD_timeout_tcd_2;
+	htcd->timeout_task_id = SCH_Add_Task(timeout_func, PAYOUT_DURATION, 0);
+	htcd->state = TCD_WAIT_FOR_RESETING;
 }
 
-static void TCDMNG_wait_for_reseting(){
-	if(timeout_flag){
-		TCD_reset(TCD_1, false);
-		TCD_reset(TCD_2, false);
+static void TCD_wait_for_reseting(TCD_HandleType_t *htcd){
+	if(htcd->timeout){
+		TCD_reset(htcd->id, false);
 	}
 }
 
-static void TCDMNG_payouting(){
-	// Check which TCD is available to pay out
-	if(prev_tcd_using == TCD_1){
-		if((TCDMNG_is_available(TCD_2) && !TCD_is_lower(TCD_2))
-			|| (TCDMNG_is_available(TCD_2) && TCD_is_lower(TCD_2) && TCD_is_lower(TCD_1))){
-			tcd_using = TCD_2;
-			TCD_payout_card(TCD_2, true);
-			// How long to enable payout signal
-			SCH_Delete_Task(task_id);
-			timeout_flag = false;
-			task_id = SCH_Add_Task(TCDMNG_timeout, PAYOUT_DURATION, 0);
-			tcdmng_state = TCDMNG_WAIT_FOR_PAYOUTING;
-		}
-		else if(TCDMNG_is_available(TCD_1)){
-			tcd_using = TCD_1;
-			TCD_payout_card(TCD_1, true);
-			// How long to enable payout signal
-			SCH_Delete_Task(task_id);
-			timeout_flag = false;
-			task_id = SCH_Add_Task(TCDMNG_timeout, PAYOUT_DURATION, 0);
-			tcdmng_state = TCDMNG_WAIT_FOR_PAYOUTING;
-		}
-	}
-	else if(prev_tcd_using == TCD_2){
-		if((TCDMNG_is_available(TCD_1) && !TCD_is_lower(TCD_1))
-			|| (TCDMNG_is_available(TCD_1) && TCD_is_lower(TCD_1) && TCD_is_lower(TCD_2))){
-			tcd_using = TCD_1;
-			TCD_payout_card(TCD_1, true);
-			// How long to enable payout signal
-			SCH_Delete_Task(task_id);
-			timeout_flag = false;
-			task_id = SCH_Add_Task(TCDMNG_timeout, PAYOUT_DURATION, 0);
-			tcdmng_state = TCDMNG_WAIT_FOR_PAYOUTING;
-		}
-		else if(TCDMNG_is_available(TCD_2)){
-			tcd_using = TCD_2;
-			TCD_payout_card(TCD_2, true);
-			// How long to enable payout signal
-			SCH_Delete_Task(task_id);
-			timeout_flag = false;
-			task_id = SCH_Add_Task(TCDMNG_timeout, PAYOUT_DURATION, 0);
-			tcdmng_state = TCDMNG_WAIT_FOR_PAYOUTING;
-		}
-	}
-	prev_tcd_using = tcd_using;
+static void TCD_payouting(TCD_HandleType_t *htcd){
+	TCD_payout_card(htcd->id, true);
+	SCH_Delete_Task(htcd->timeout_task_id);
+	htcd->timeout = false;
+	void * timeout_func = htcd->id == TCD_1? TCD_timeout_tcd_1 : TCD_timeout_tcd_2;
+	htcd->timeout_task_id = SCH_Add_Task(timeout_func, PAYOUT_DURATION, 0);
+	htcd->state = TCD_WAIT_FOR_PAYOUTING;
 }
 
-static void TCDMNG_wait_for_payouting(){
-	if(timeout_flag){
-		TCD_payout_card(tcd_using, false);
-		SCH_Delete_Task(task_id);
-		timeout_flag = false;
-		task_id = SCH_Add_Task(TCDMNG_timeout, CARD_TO_PLACE_CARD_TIMEOUT, 0);
-		tcdmng_state = TCDMNG_WAIT_FOR_CARD_IN_PLACE;
+static void TCD_wait_for_payouting(TCD_HandleType_t *htcd){
+	if(htcd->timeout){
+		TCD_payout_card(htcd->id, false);
+		SCH_Delete_Task(htcd->timeout_task_id);
+		htcd->timeout = false;
+		void * timeout_func = htcd->id == TCD_1? TCD_timeout_tcd_1 : TCD_timeout_tcd_2;
+		htcd->timeout_task_id = SCH_Add_Task(timeout_func, CARD_TO_PLACE_CARD_TIMEOUT, 0);
+		htcd->state = TCD_WAIT_FOR_CARD_IN_PLACE;
 	}
 }
 
-static void TCDMNG_wait_for_card_in_place(){
-	if(timeout_flag){
+static void TCD_wait_for_card_in_place(TCD_HandleType_t *htcd){
+	if(htcd->timeout){
 		utils_log_error("Timeout to payout card, check card in tcd\r\n");
-		SCH_Delete_Task(task_id);
-		timeout_flag = false;
-		task_id = SCH_Add_Task(TCDMNG_timeout, ERROR_CHECK_INTERVAL, 0);
-		tcdmng_state = TCDMNG_ERROR;
+		SCH_Delete_Task(htcd->timeout_task_id);
+		htcd->timeout = false;
+		void * timeout_func = htcd->id == TCD_1? TCD_timeout_tcd_1 : TCD_timeout_tcd_2;
+		htcd->timeout_task_id = SCH_Add_Task(timeout_func, ERROR_CHECK_INTERVAL, 0);
+		htcd->state = TCD_ERROR;
 	}
-	if(TCD_is_out_ok(tcd_using)){
-		SCH_Delete_Task(task_id);
-		timeout_flag = false;
-		task_id = SCH_Add_Task(TCDMNG_timeout, TAKING_CARD_TIMEOUT, 0);
-		tcdmng_state = TCDMNG_WAIT_FOR_TAKING_CARD;
+	if(TCD_is_out_ok(htcd->id)){
+		SCH_Delete_Task(htcd->timeout_task_id);
+		htcd->timeout = false;
+		void * timeout_func = htcd->id == TCD_1? TCD_timeout_tcd_1 : TCD_timeout_tcd_2;
+		htcd->timeout_task_id = SCH_Add_Task(timeout_func, TAKING_CARD_TIMEOUT, 0);
+		htcd->state = TCD_WAIT_FOR_TAKING_CARD;
 	}
 }
 
-static void TCDMNG_wait_for_taking_card(){
-	if(timeout_flag){
+static void TCD_wait_for_taking_card(TCD_HandleType_t *htcd){
+	uint32_t updating_status_time;
+	if(htcd->timeout){
 		utils_log_error("Timeout to taking card\r\n");
-		SCH_Delete_Task(task_id);
-		timeout_flag = false;
-		task_id = SCH_Add_Task(TCDMNG_timeout, ERROR_CHECK_INTERVAL, 0);
-		tcdmng_state = TCDMNG_ERROR;
+		SCH_Delete_Task(htcd->timeout_task_id);
+		htcd->timeout = false;
+		void * timeout_func = htcd->id == TCD_1? TCD_timeout_tcd_1 : TCD_timeout_tcd_2;
+		htcd->timeout_task_id = SCH_Add_Task(timeout_func, ERROR_CHECK_INTERVAL, 0);
+		htcd->state = TCD_ERROR;
 	}
 	// Card is in place but cannot be take
-	if(!TCD_is_out_ok(tcd_using)){
-		SCH_Delete_Task(task_id);
-		timeout_flag = false;
-		if(TCD_is_lower(tcd_using)){
+	if(!TCD_is_out_ok(htcd->id)){
+		SCH_Delete_Task(htcd->timeout_task_id);
+		htcd->timeout = false;
+		if(TCD_is_lower(htcd->id)){
 			updating_status_time = UPDATING_STATUS_TIME_WHEN_LOWER;
 		}else{
 			updating_status_time = UPDATING_STATUS_TIME_WHEN_NORMAL;
 		}
-		task_id = SCH_Add_Task(TCDMNG_timeout, updating_status_time , 0);
-		tcdmng_state = TCDMNG_WAIT_FOR_UPDATING_STATUS;
+		void * timeout_func = htcd->id == TCD_1? TCD_timeout_tcd_1 : TCD_timeout_tcd_2;
+		htcd->timeout_task_id = SCH_Add_Task(timeout_func, updating_status_time , 0);
+		htcd->state = TCD_WAIT_FOR_UPDATING_STATUS;
 
 	}
 }
 
-static void TCDMNG_callbacking(){
+static void TCD_callbacking(TCD_HandleType_t *htcd){
+	TCD_callback(htcd->id, true);
 	// How long to enable payout signal
-	// Check what TCD is available for payout
-	if(TCDMNG_is_available(TCD_1)){
-		tcd_using = TCD_1;
-		TCD_callback(TCD_1, true);
-		// How long to enable payout signal
-		SCH_Delete_Task(task_id);
-		timeout_flag = false;
-		task_id = SCH_Add_Task(TCDMNG_timeout, PAYOUT_DURATION, 0);
-		tcdmng_state = TCDMNG_WAIT_FOR_CALLBACKING;
-	}else if(TCDMNG_is_available(TCD_2)){
-		tcd_using = TCD_2;
-		TCD_callback(TCD_2, true);
-		// How long to enable payout signal
-		SCH_Delete_Task(task_id);
-		timeout_flag = false;
-		task_id = SCH_Add_Task(TCDMNG_timeout, PAYOUT_DURATION, 0);
-		tcdmng_state = TCDMNG_WAIT_FOR_CALLBACKING;
-	}else{
-		SCH_Delete_Task(task_id);
-		timeout_flag = false;
-		task_id = SCH_Add_Task(TCDMNG_timeout, ERROR_CHECK_INTERVAL, 0);
-		tcdmng_state = TCDMNG_ERROR;
-	}
-
+	SCH_Delete_Task(htcd->timeout_task_id);
+	htcd->timeout = false;
+	void * timeout_func = htcd->id == TCD_1? TCD_timeout_tcd_1 : TCD_timeout_tcd_2;
+	htcd->timeout_task_id = SCH_Add_Task(timeout_func, PAYOUT_DURATION, 0);
+	htcd->state = TCD_WAIT_FOR_CALLBACKING;
 }
 
-static void TCDMNG_wait_for_callbacking(){
-	if(timeout_flag){
-		TCD_callback(tcd_using, false);
-		tcdmng_state = TCDMNG_IDLE;
+static void TCD_wait_for_callbacking(TCD_HandleType_t *htcd){
+	if(htcd->timeout){
+		TCD_callback(htcd->id, false);
+		htcd->state = TCD_IDLE;
 	}
 }
 
-static void TCDMNG_wait_for_updating_status(){
-	if(timeout_flag){
-		tcdmng_state = TCDMNG_IDLE;
+static void TCD_wait_for_updating_status(TCD_HandleType_t *htcd){
+	if(htcd->timeout){
+		htcd->state = TCD_IDLE;
 	}
 }
 
 
-static void TCDMNG_error(){
-	if(timeout_flag){
+static void TCD_error(TCD_HandleType_t *htcd){
+	if(htcd->timeout){
 		if(!TCDMNG_is_error()){
-			tcdmng_state = TCDMNG_IDLE;
+			htcd->state = TCD_IDLE;
 		}else{
-			SCH_Delete_Task(task_id);
-			timeout_flag = false;
-			task_id = SCH_Add_Task(TCDMNG_timeout, ERROR_CHECK_INTERVAL, 0);
+			SCH_Delete_Task(htcd->timeout_task_id);
+			htcd->timeout = false;
+			void * timeout_func = htcd->id == TCD_1? TCD_timeout_tcd_1 : TCD_timeout_tcd_2;
+			htcd->timeout_task_id = SCH_Add_Task(timeout_func, ERROR_CHECK_INTERVAL, 0);
 		}
-
 	}
-
 }
 
-
-static void TCDMNG_update_status(){
+static void TCD_update_status(TCD_HandleType_t *htcd){
 	// Get status of 2 TCD
-	status.TCD_1.is_empty = TCD_is_empty(TCD_1);
-	status.TCD_1.is_error = TCD_is_error(TCD_1);
-	status.TCD_1.is_lower = TCD_is_lower(TCD_1);
-	status.TCD_2.is_empty = TCD_is_empty(TCD_2);
-	status.TCD_2.is_error = TCD_is_error(TCD_2);
-	status.TCD_2.is_lower = TCD_is_lower(TCD_2);
+	htcd->status.is_empty = TCD_is_empty(htcd->id);
+	htcd->status.is_error = TCD_is_error(htcd->id);
+	htcd->status.is_lower = TCD_is_lower(htcd->id);
+}
+
+static void TCD_timeout_tcd_1(){
+	htcd_1.timeout = true;
+}
+static void TCD_timeout_tcd_2(){
+	htcd_2.timeout = true;
 }
 
 
-static void TCDMNG_timeout(){
-	timeout_flag = true;
-}
-
-static void TCDMNG_timeout_for_init(){
-	timeout_for_init_flag = true;
-}
-
-
-static void TCDMNG_printf(){
-	if(tcdmng_prev_state != tcdmng_state){
-		utils_log_info(tcdmng_state_name[tcdmng_state]);
+static void TCD_printf(TCD_HandleType_t *htcd){
+	if(htcd->prev_state != htcd->state){
+		utils_log_info(tcd_state_name[htcd->state]);
 	}
 }
