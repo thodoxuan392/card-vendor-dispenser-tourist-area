@@ -10,7 +10,7 @@
 
 #include "stdio.h"
 #include "stdbool.h"
-#include "string.h"
+#include "Device/tcd.h"
 
 typedef struct {
 	bool is_error;
@@ -23,7 +23,12 @@ typedef struct {
 	TCD_status_t TCD_2;
 }TCDMNG_Status_t;
 
+typedef void (*TCDMNG_take_card_cb)(TCD_id_t id);
+typedef void (*TCDMNG_callback_card_cb)(TCD_id_t id);
+
 void TCDMNG_init();
+void TCDMNG_set_take_card_cb(TCDMNG_take_card_cb callback);
+void TCDMNG_set_callback_card_cb(TCDMNG_callback_card_cb callback);
 void TCDMNG_run();
 TCDMNG_Status_t TCDMNG_get_status();
 uint8_t TCDMNG_get_state();

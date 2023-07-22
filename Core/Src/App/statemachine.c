@@ -44,6 +44,10 @@ static void SM_update_total_card_by_time(RTC_t *rtc , CONFIG_t *config);
 static void SM_timeout();
 static void SM_timeout_for_update();
 static void SM_printf();
+// Callback
+static void SM_take_card_cb(TCD_id_t id);
+static void SM_callback_card_cb(TCD_id_t id);
+
 
 static uint8_t prev_state = SM_INIT;
 static uint8_t state = SM_INIT;
@@ -63,7 +67,9 @@ static bool timeout_for_update = true;
 static bool timeout = false;
 
 bool STATEMACHINE_init(){
-
+	// Set TCDMNG callback
+	TCDMNG_set_take_card_cb(SM_take_card_cb);
+	TCDMNG_set_callback_card_cb(SM_callback_card_cb);
 }
 
 bool STATEMACHINE_run(){
@@ -235,19 +241,7 @@ static void SM_wait_for_payouting_card(){
 	if(TCDMNG_is_in_idle()){
 		// Clear timeout
 		SCH_Delete_Task(timeout_task_id);
-		// Get config & time
-		config = CONFIG_get();
-		rtc = RTC_get_time();
-		uint32_t amount = BILLACCEPTORMNG_get_amount();
-		// Update amount
-		amount -= config->card_price;
-		config->total_card++;
-		config->total_card_by_day++;
-		config->total_card_by_month++;
-		CONFIG_set(config);
-		BILLACCEPTORMNG_set_amount(amount);
-		LCDMNG_set_working_screen(&rtc, config->amount);
-
+		utils_log_info("Switch to SM_IDLE because TCD is in idle\r\n");
 		state = SM_IDLE;
 	}
 
@@ -307,4 +301,24 @@ static void SM_printf(){
 	if(prev_state != state){
 		utils_log_info(state_name[state]);
 	}
+}
+
+static void SM_take_card_cb(TCD_id_t id){
+	utils_log_info("TCD_%d: Card is taken\r\n", id);
+	// Get config & time
+	CONFIG_t *config = CONFIG_get();
+	RTC_t rtc = RTC_get_time();
+	uint32_t amount = BILLACCEPTORMNG_get_amount();
+	// Update amount
+	amount -= config->card_price;
+	config->total_card++;
+	config->total_card_by_day++;
+	config->total_card_by_month++;
+	CONFIG_set(config);
+	BILLACCEPTORMNG_set_amount(amount);
+	LCDMNG_set_working_screen(&rtc, config->amount);
+}
+
+static void SM_callback_card_cb(TCD_id_t id){
+	utils_log_info("TCD_%d: Card is callback\r\n", id);
 }

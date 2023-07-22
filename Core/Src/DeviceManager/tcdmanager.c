@@ -103,6 +103,10 @@ static TCD_HandleType_t htcd_2 = {
 	.timeout = false
 };
 
+// Callback
+static TCDMNG_take_card_cb take_card_cb;
+static TCDMNG_callback_card_cb callback_card_cb;
+
 // Private function
 static void TCD_run(TCD_HandleType_t *htcd);
 static void TCD_idle(TCD_HandleType_t *htcd);
@@ -123,6 +127,13 @@ static void TCD_timeout_tcd_2();
 static void TCD_printf(TCD_HandleType_t *htcd);
 
 void TCDMNG_init(){
+}
+
+void TCDMNG_set_take_card_cb(TCDMNG_take_card_cb callback){
+	take_card_cb = callback;
+}
+void TCDMNG_set_callback_card_cb(TCDMNG_callback_card_cb callback){
+	callback_card_cb = callback;
 }
 
 void TCDMNG_run(){
@@ -357,6 +368,9 @@ static void TCD_wait_for_taking_card(TCD_HandleType_t *htcd){
 	}
 	// Card is in place but cannot be take
 	if(!TCD_is_out_ok(htcd->id)){
+		utils_log_error("Take card completed\r\n");
+		// Should callback
+		if(take_card_cb) take_card_cb(htcd->id);
 		SCH_Delete_Task(htcd->timeout_task_id);
 		htcd->timeout = false;
 		if(TCD_is_lower(htcd->id)){
@@ -367,12 +381,13 @@ static void TCD_wait_for_taking_card(TCD_HandleType_t *htcd){
 		void * timeout_func = htcd->id == TCD_1? TCD_timeout_tcd_1 : TCD_timeout_tcd_2;
 		htcd->timeout_task_id = SCH_Add_Task(timeout_func, updating_status_time , 0);
 		htcd->state = TCD_WAIT_FOR_UPDATING_STATUS;
-
 	}
 }
 
 static void TCD_callbacking(TCD_HandleType_t *htcd){
 	TCD_callback(htcd->id, true);
+	// Should callback
+	if(callback_card_cb) callback_card_cb(htcd->id);
 	// How long to enable payout signal
 	SCH_Delete_Task(htcd->timeout_task_id);
 	htcd->timeout = false;
