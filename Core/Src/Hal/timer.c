@@ -19,9 +19,9 @@ static size_t fn_table_len = 0;
 TIM_HandleTypeDef htim3 = {
 	.Instance = TIM3,
 	.Init = {
-		.Prescaler = 127,
+		.Prescaler = 63,
 		.CounterMode = TIM_COUNTERMODE_UP,
-		.Period = 799,
+		.Period = 999,
 		.ClockDivision = TIM_CLOCKDIVISION_DIV1,
 		.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE
 	}
