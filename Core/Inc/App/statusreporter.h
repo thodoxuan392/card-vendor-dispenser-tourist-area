@@ -11,6 +11,8 @@
 #include "stdio.h"
 #include "stdbool.h"
 
+#define DISPENSE_DIR_OUT    0
+#define DISPENSE_DIR_IN     1
 
 bool STATUSREPORTER_init();
 bool STATUSREPORTER_run();

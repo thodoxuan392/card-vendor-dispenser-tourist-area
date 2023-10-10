@@ -232,6 +232,7 @@ static void SM_payouting_card(){
 static void SM_wait_for_payouting_card(){
 	CONFIG_t *config;
 	RTC_t rtc;
+	uint32_t amount;
 
 	if(TCDMNG_is_in_error()){
 		// Clear timeout
@@ -244,9 +245,23 @@ static void SM_wait_for_payouting_card(){
 
 	// In case idle without any error -> Deduce amount and update to screen
 	if(TCDMNG_is_in_idle()){
+		// Get property
+		amount = BILLACCEPTORMNG_get_amount();
+		config = CONFIG_get();
+		rtc = RTC_get_time();
+		// Update amount
+		amount -= config->card_price;
+		config->total_card++;
+		config->total_card_by_day++;
+		config->total_card_by_month++;
+		CONFIG_set(config);
+		BILLACCEPTORMNG_set_amount(amount);
+		LCDMNG_set_working_screen(&rtc, amount);
 		// Clear timeout
 		SCH_Delete_Task(timeout_task_id);
 		utils_log_info("Switch to SM_IDLE because TCD is in idle\r\n");
+		// Report card dispense
+		STATUSREPORTER_report_dispense(DISPENSE_DIR_OUT);
 		state = SM_IDLE;
 	}
 
