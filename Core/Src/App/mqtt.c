@@ -48,16 +48,15 @@ static bool published = false;
 static char client_id[CLIENTID_MAX_LEN];
 
 static char subtopic_entry[][TOPIC_MAX_LEN] = {
-		[SUBTOPIC_CONFIG] = "%s/config",
-		[SUBTOPIC_COMMAND] = "%s/command",
+		[SUBTOPIC_CONFIG] = "%s/%s/config",
+		[SUBTOPIC_COMMAND] = "%s/%s/command",
 };
 
 static netif_mqtt_client_t mqtt_client = {
-		.client_id = "netif_test_123",
-		.host = "35.240.158.2",
-		.port = 8883,
-		.username = "eboost-k2",
-		.password = "ZbHzPb5W",
+		.host = "iot.chipfc.com",
+		.port = 1883,
+		.username = "pos-2023",
+		.password = "xcv123@asdkwreouox#asd",
 		.reconnect = 1,
 		.keep_alive = 120,
 		.on_connect = on_connect_cb,
@@ -70,12 +69,12 @@ void MQTT_init(){
 	char topic_temp[TOPIC_MAX_LEN];
 	CONFIG_t* config = CONFIG_get();
 	// Init Client ID
-	snprintf(client_id, CLIENTID_MAX_LEN,"CD_%s", config->device_id);
+	snprintf(client_id, CLIENTID_MAX_LEN,"%s_%s",MODEL, config->device_id);
 	mqtt_client.client_id = client_id;
 	// Init SubTopic
 	for (int var = 0; var < sizeof(subtopic_entry)/sizeof(subtopic_entry[0]); ++var) {
 		// Append boxID to Topic
-		snprintf(topic_temp, TOPIC_MAX_LEN, subtopic_entry[var], config->device_id);
+		snprintf(topic_temp, TOPIC_MAX_LEN, subtopic_entry[var],MODEL ,config->device_id);
 		memcpy(subtopic_entry[var], topic_temp, TOPIC_MAX_LEN);
 	}
     // Init Tx-Rx Buffer;
@@ -245,7 +244,7 @@ static void on_disconnect_cb(uint8_t status){
 
 static void on_message_cb(char * topic, char * payload){
 	utils_log_debug("On message callback: topic %s, payload %s\r\n", topic,payload);
-    MQTT_message_t message;
+    MQTT_message_t message = {0};
     message.topic_id = mqtt_subtopic_to_id(topic);
     memcpy(message.payload, payload , strlen(payload));
 	utils_buffer_push(&mqtt_rx_buffer, &message);

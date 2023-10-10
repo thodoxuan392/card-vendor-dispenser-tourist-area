@@ -11,11 +11,30 @@
 #include "stdio.h"
 #include "stdbool.h"
 
-#define BOOTLOADER_ADDRESS			0x08000000			//	0x08000000 - 0x08006000: 24kB
-#define APPLICATION_1_ADDRESS		0x08006000			// 	0x08006000 - 0x0801F000: 100 KB
-#define APPLICATION_2_ADDRESS		0x0801F000			//  0x0801F000 - 0x0803FF00: 100 KB
-#define FIRMWARE_CHOOSEN_ADDRESS	0x0803F000			//	0x0803F000 - 0x0803F004: 4B
-#define OTA_REQUESTED_ADDRESS		0x0803F800			// 	0x0803F800 - 0x0803F804: 4B
+#define NO_OTA			0
+#define FACTORY			1
+#define CURRENT			0
+
+/*
+ * Firmware address
+ */
+#define NO_OTA_FIRMWARE_ADDR		0x08000000
+#define FACTORY_FIRMWARE_ADDR		0x08008000			// Address of Factory Firmware 96KBytes
+#define CURRENT_FIRMWARE_ADDR		0x08020000			// Address of Current Firmware 96KBytes
+
+#if defined(NO_OTA) && NO_OTA == 1
+#define FIRMWARE_ADDR		NO_OTA_FIRMWARE_ADDR
+#elif defined(FACTORY) && FACTORY == 1
+#define FIRMWARE_ADDR		FACTORY_FIRMWARE_ADDR
+#elif defined(CURRENT) && CURRENT == 1
+#define FIRMWARE_ADDR		CURRENT_FIRMWARE_ADDR
+#endif
+/*
+ * Ota Requested
+ */
+#define OTA_IS_NOT_REQUESTED		0
+#define OTA_IS_REQUESTED			1
+#define OTA_REQUESTED_ADDRESS		0x0803F800			// 	0x0803F800 - 0x0803F802: 4B
 
 enum {
 	BOOTLOADER_CHOOSEN,
@@ -23,12 +42,6 @@ enum {
 	APPLICATION_2_CHOOSEN
 };
 
-uint8_t OTA_get_firmware_choosen();
-uint16_t OTA_get_ota_requested();
-void OTA_set_ota_requested(bool enable);
-void OTA_jump_to_bootloader();
-void OTA_jump_to_application_1();
-void OTA_jump_to_application_2();
-void OTA_test();
+void OTA_set_ota_requested();
 
 #endif /* INC_APP_OTA_H_ */

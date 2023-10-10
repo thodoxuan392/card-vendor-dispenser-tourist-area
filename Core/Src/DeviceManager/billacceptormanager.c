@@ -40,6 +40,7 @@ static uint8_t billacceptormng_state = BILLACCEPTORMNG_IDLE;
 static uint8_t prev_billacceptor_status = STATUS_SUCCESS;
 static uint8_t billacceptor_status = STATUS_SUCCESS;
 static bool is_accepted = false;
+static uint32_t last_bill_accepted = 0;
 static uint8_t bill_routing;
 static uint8_t bill_type_accepted;
 static uint32_t amount = 0;
@@ -163,6 +164,10 @@ bool BILLACCEPTORMNG_clear_accepted(){
 	is_accepted = false;
 }
 
+uint32_t BILLACCEPTOR_get_last_bill_accepted(){
+	return last_bill_accepted;
+}
+
 uint32_t BILLACCEPTORMNG_get_amount(){
 	return amount;
 }
@@ -209,6 +214,7 @@ static void BILLACCEPTORMNG_have_bill(){
 	switch (bill_routing) {
 		case BILL_STACKED:
 			is_accepted = true;
+			last_bill_accepted = bill_mapping[bill_type_accepted];
 			// Calculate Bill Value and add it to amount
 			amount += bill_mapping[bill_type_accepted];
 			// Update total amount

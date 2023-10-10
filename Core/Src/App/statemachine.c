@@ -131,6 +131,7 @@ static void SM_wait_for_init(){
 static void SM_idle(){
 	CONFIG_t *config;
 	RTC_t rtc;
+	uint32_t bill_value;
 	// LCD Manager set IDLE screen
 	LCDMNG_set_idle_screen();
 	// Update working screen
@@ -187,11 +188,15 @@ static void SM_idle(){
 
 	// Check if BILL is accepted
 	if(BILLACCEPTORMNG_is_accepted()){
+		// Clear idle screen -> Switch to working screen immediately
 		LCDMNG_clear_idle_screen();
 		BILLACCEPTORMNG_clear_accepted();
 		config = CONFIG_get();
 		rtc = RTC_get_time();
 		LCDMNG_set_working_screen(&rtc, config->amount);
+		// Get bill accepted and report to server
+		bill_value = BILLACCEPTOR_get_last_bill_accepted();
+		STATUSREPORTER_report_billaccepted(bill_value);
 		// Timeout to wait user can view money change
 		timeout = false;
 		timeout_task_id = SCH_Add_Task(SM_timeout, SM_BILLACCEPTOR_DURATION, 0);

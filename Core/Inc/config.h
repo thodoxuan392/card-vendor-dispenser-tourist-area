@@ -14,6 +14,8 @@
 #define VERSION_MAX_LEN		8
 #define VERSION	 			"1.0.0"
 
+#define MODEL				"cardvendor"
+
 #define MANUAL_MODE_PASSWORD		"987654321"
 
 #define SETTING_MODE_PASSWORD_MAX_LEN	10

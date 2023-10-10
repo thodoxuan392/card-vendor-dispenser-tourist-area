@@ -12,7 +12,7 @@
 #include "DeviceManager/tcdmanager.h"
 #include "Lib/scheduler/scheduler.h"
 
-#define STATUSREPORT_INTERVAL		30 * 1000 	// 5 minutes
+#define STATUSREPORT_INTERVAL		3 * 1000 	// 10s
 
 static bool timeout_flag = true;
 
@@ -25,6 +25,8 @@ static void STATUSREPORTER_build_status_payload(char * buf,
 													uint8_t billacepptor_status);
 static void STATUSREPORTER_build_bill_accepted_topic(char * buf, char * device_id);
 static void STATUSREPORTER_build_bill_accepted_payload(char * buf, uint32_t bill_value);
+static void STATUSREPORTER_build_dispense_topic(char * buf, char * device_id);
+static void STATUSREPORTER_build_dispense_payload(char * buf, uint32_t direction);
 static void STATUSREPORTER_timeout();
 
 bool STATUSREPORTER_init(){
@@ -53,6 +55,19 @@ void STATUSREPORTER_report_billaccepted(uint32_t bill_value){
 	MQTT_sent_message(&message);
 }
 
+void STATUSREPORTER_report_dispense(uint32_t direction){
+	CONFIG_t *config = CONFIG_get();
+	MQTT_message_t message = {
+		.qos = 1,
+		.retain = 0
+	};
+	// Build Topic
+	STATUSREPORTER_build_dispense_topic(message.topic, config->device_id);
+	STATUSREPORTER_build_dispense_payload(message.payload, direction);
+	// Send message
+	MQTT_sent_message(&message);
+}
+
 static void STATUSREPORTER_report_status(){
 	CONFIG_t *config = CONFIG_get();
 	MQTT_message_t message = {
@@ -73,7 +88,8 @@ static void STATUSREPORTER_report_status(){
 static void STATUSREPORTER_build_status_topic(char * buf, char * device_id){
 	snprintf(buf,
 			TOPIC_MAX_LEN,
-			"%s/rp/status",
+			"%s/%s/rp/status",
+			MODEL,
 			device_id);
 }
 
@@ -116,7 +132,8 @@ static void STATUSREPORTER_build_status_payload(char * buf,
 static void STATUSREPORTER_build_bill_accepted_topic(char * buf, char * device_id){
 	snprintf(buf,
 			TOPIC_MAX_LEN,
-			"%s/rp/bill_accepted",
+			"%s/%s/rp/bill_accepted",
+			MODEL,
 			device_id);
 }
 
@@ -127,6 +144,23 @@ static void STATUSREPORTER_build_bill_accepted_payload(char * buf, uint32_t bill
 					"\"value\":%d"
 				"}",
 				bill_value);
+}
+
+static void STATUSREPORTER_build_dispense_topic(char * buf, char * device_id){
+	snprintf(buf,
+			TOPIC_MAX_LEN,
+			"%s/%s/rp/dispense",
+			MODEL,
+			device_id);
+}
+
+static void STATUSREPORTER_build_dispense_payload(char * buf, uint32_t direction){
+	snprintf(buf,
+				PAYLOAD_MAX_LEN,
+				"{"
+					"\"dir\":%d"
+				"}",
+				direction);
 }
 
 static void STATUSREPORTER_timeout(){

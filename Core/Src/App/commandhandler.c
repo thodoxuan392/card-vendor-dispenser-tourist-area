@@ -6,7 +6,9 @@
  */
 
 #include "main.h"
+#include "string.h"
 #include "config.h"
+#include "App/ota.h"
 #include "App/commandhandler.h"
 #include "App/mqtt.h"
 #include "Lib/jsmn/jsmn.h"
@@ -19,11 +21,12 @@ enum {
 
 enum {
 	COMMAND_RESET,
+	COMMAND_OTA,
 	COMMAND_DELETE_TOTAL_CARD,
 	COMMAND_DELETE_TOTAL_AMOUNT
 };
 
-static uint8_t state = COMMANDHANDLE_IDLE;
+
 static MQTT_message_t message;
 
 static void COMMANDHANDLER_handle_config(uint8_t * payload, size_t payload_len);
@@ -67,6 +70,11 @@ static void COMMANDHANDLER_handle_command(uint8_t * payload, size_t payload_len)
 		switch (command) {
 			case COMMAND_RESET:
 				utils_log_info("COMMAND_RESET\r\n");
+				NVIC_SystemReset();
+				break;
+			case COMMAND_OTA:
+				utils_log_info("COMMAND_OTA\r\n");
+				OTA_set_ota_requested();
 				NVIC_SystemReset();
 				break;
 			case COMMAND_DELETE_TOTAL_CARD:
@@ -127,7 +135,7 @@ static bool COMMANDHANDLER_parse_config(uint8_t *payload, size_t payload_len, CO
 
 static bool COMMANDHANDLER_parse_command(uint8_t *payload, size_t payload_len, uint8_t *command){
 	jsmn_parser p;
-	jsmntok_t t[PAYLOAD_MAX_LEN]; /* We expect no more than 128 tokens */
+	jsmntok_t t[PAYLOAD_MAX_LEN];
 
 	jsmn_init(&p);
 	uint32_t r = jsmn_parse(&p, payload, payload_len, t,
@@ -145,7 +153,7 @@ static bool COMMANDHANDLER_parse_command(uint8_t *payload, size_t payload_len, u
 
 	/* Loop over all keys of the root object */
 	for (uint32_t i = 1; i < r; i++) {
-		if (jsmn_streq(payload, &t[i], "cmd") == 0) {
+		if (jsmn_streq(payload, &t[i], "cmd_id") == 0) {
 			* command = (uint8_t)utils_string_to_int(payload + t[i + 1].start, t[i + 1].end - t[i + 1].start);
 			utils_log_debug("- Command: %d\r\n", * command);
 			i++;
