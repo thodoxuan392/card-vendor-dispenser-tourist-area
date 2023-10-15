@@ -32,6 +32,7 @@
 #include "Device/rtc.h"
 #include "Device/lcd.h"
 #include "Device/tcd.h"
+#include "Device/sim7070_io.h"
 #include "DeviceManager/billacceptormanager.h"
 #include "DeviceManager/tcdmanager.h"
 #include "DeviceManager/keypadmanager.h"
@@ -99,6 +100,7 @@ int main(void)
   KEYPAD_init();
   LCD_init();
   RTC_init();
+  SIM7070_IO_init();
   // Device Manager Init
   BILLACCEPTORMNG_init();
   TCDMNG_init();
