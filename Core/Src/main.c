@@ -100,7 +100,7 @@ int main(void)
   KEYPAD_init();
   LCD_init();
   RTC_init();
-  SIM7070_IO_init();
+  SIM7070_init();
   // Device Manager Init
   BILLACCEPTORMNG_init();
   TCDMNG_init();
@@ -118,6 +118,7 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+//  UART_test();
 //  RTC_test();
 //  EEPROM_test();
 //  CONFIG_test();

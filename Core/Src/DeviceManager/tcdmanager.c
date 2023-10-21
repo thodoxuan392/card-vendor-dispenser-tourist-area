@@ -104,8 +104,8 @@ static TCD_HandleType_t htcd_2 = {
 };
 
 // Callback
-static TCDMNG_take_card_cb take_card_cb;
-static TCDMNG_callback_card_cb callback_card_cb;
+static TCDMNG_take_card_cb take_card_cb = NULL;
+static TCDMNG_callback_card_cb callback_card_cb = NULL;
 
 // Private function
 static void TCD_run(TCD_HandleType_t *htcd);

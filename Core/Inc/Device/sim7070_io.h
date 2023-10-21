@@ -8,8 +8,11 @@
 #ifndef INC_DEVICE_SIM7070_IO_H_
 #define INC_DEVICE_SIM7070_IO_H_
 
+#include "stdio.h"
+#include "stdbool.h"
 
-void SIM7070_IO_init();
+
+void SIM7070_init();
 bool SIM7070_power(bool enable);
 bool SIM7070_reset(bool enable);
 bool SIM7070_is_net();

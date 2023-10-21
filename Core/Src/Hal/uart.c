@@ -9,6 +9,7 @@
 #include "main.h"
 #include "Hal/uart.h"
 #include "utils/utils_buffer.h"
+#include "utils/utils_logger.h"
 
 #define TX_TIMEOUT		0xFFFF
 
@@ -119,6 +120,14 @@ uint16_t UART_receive_data(UART_id_t id){
 
 void UART_clear_buffer(UART_id_t id){
 	utils_buffer_drop_all(uart_table[id].buffer);
+}
+
+void UART_test(){
+	while(1){
+		HAL_Delay(1000);
+		UART_send(UART_4, "AT\r\n", 4);
+		utils_log_info("Sending AT command\r\n");
+	}
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef * huart){
