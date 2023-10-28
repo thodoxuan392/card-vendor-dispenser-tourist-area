@@ -21,6 +21,7 @@
 
 enum {
 	FN_TIME = 1,
+	FN_DEVICE_ID,
 	FN_CARD_PRICE,
 	FN_PASSWORD,
 	FN_TOTAL_CARD,
@@ -28,7 +29,7 @@ enum {
 	FN_TOTAL_AMOUNT,
 	FN_DELETE_TOTAL_AMOUNT,
 	FN_TOTAL_CARD_BY_DAY,
-	FN_TOTAL_CARD_BY_MONTH
+	FN_TOTAL_CARD_BY_MONTH,
 };
 
 enum {
@@ -80,6 +81,8 @@ static void KEYPADHANDLER_total_card( uint8_t *data, size_t data_len, uint8_t pr
 static void KEYPADHANDLER_delete_total_card( uint8_t *data, size_t data_len, uint8_t pressed_state);
 static void KEYPADHANDLER_total_amount( uint8_t *data, size_t data_len, uint8_t pressed_state);
 static void KEYPADHANDLER_delete_total_amount( uint8_t *data, size_t data_len, uint8_t pressed_state);
+static void KEYPADHANDLER_device_id( uint8_t *data, size_t data_len, uint8_t pressed_state);
+
 
 // Utils
 static void KEYPADHANDLER_parse_time(void *data, size_t data_len, RTC_t * rtc);
@@ -289,6 +292,9 @@ static bool KEYPADHANDLER_execute(uint8_t fn, uint8_t *data, size_t data_len, ui
 		case FN_TIME:
 			KEYPADHANDLER_time(data, data_len, pressed_state);
 			break;
+		case FN_DEVICE_ID:
+			KEYPADHANDLER_device_id(data, data_len, pressed_state);
+			break;
 		case FN_CARD_PRICE:
 			KEYPADHANDLER_card_prices(data, data_len, pressed_state);
 			break;
@@ -343,6 +349,46 @@ static void KEYPADHANDLER_time(uint8_t *data, size_t data_len, uint8_t pressed_s
 			break;
 	}
 	LCDMNG_set_setting_data_screen(fn, &rtc , sizeof(rtc), lcdmng_setting_data_state);
+}
+
+
+static void KEYPADHANDLER_device_id( uint8_t *data, size_t data_len, uint8_t pressed_state){
+	CONFIG_t * config = CONFIG_get();
+	char device_id[DEVICE_ID_MAX_LEN];
+	size_t device_id_len = data_len;
+	uint8_t lcdmng_setting_data_state = LCDMNG_SETTING_DATA_NOT_ENTERED;
+	if(data_len > DEVICE_ID_MAX_LEN){
+		device_id_len = DEVICE_ID_MAX_LEN;
+	}
+	switch (pressed_state) {
+		case KEYPADHANDLER_SETTING_DATA_NOT_PRESSED:
+			memset(device_id, 0 , sizeof(device_id));
+			strcpy(device_id, config->device_id);
+			break;
+		case KEYPADHANDLER_SETTING_DATA_PRESSED_BUT_NOT_ENTERED:
+			memset(device_id, 0 , sizeof(device_id));
+			KEYPADHANDLER_int_to_str(device_id, data, device_id_len);
+			break;
+		case KEYPADHANDLER_SETTING_DATA_ENTERED:
+			memset(device_id, 0 , sizeof(device_id));
+			KEYPADHANDLER_int_to_str(device_id, data, device_id_len);
+			lcdmng_setting_data_state = LCDMNG_SETTING_DATA_ENTERED;
+			break;
+		case KEYPADHANDLER_SETTING_DATA_CONFIRMED:
+			memset(config->device_id, 0 , sizeof(config->device_id));
+			KEYPADHANDLER_int_to_str(config->device_id, data, device_id_len);
+			CONFIG_set(config);
+			utils_log_info("New device_id: %s\r\n", config->device_id);
+			lcdmng_setting_data_state = LCDMNG_SETTING_DATA_CONFIRMED;
+			break;
+		case KEYPADHANDLER_SETTING_DATA_CANCELLED:
+			memset(device_id, 0 , sizeof(device_id));
+			strcpy(device_id, config->device_id);
+			break;
+		default:
+			break;
+	}
+	LCDMNG_set_setting_data_screen(FN_DEVICE_ID, device_id, DEVICE_ID_MAX_LEN, lcdmng_setting_data_state);
 }
 
 static void KEYPADHANDLER_card_prices(uint8_t *data, size_t data_len, uint8_t pressed_state){

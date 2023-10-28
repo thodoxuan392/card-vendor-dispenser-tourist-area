@@ -43,6 +43,7 @@ typedef struct {
 bool CONFIG_init();
 CONFIG_t * CONFIG_get();
 void CONFIG_set(CONFIG_t *);
+void CONFIG_reset_default();
 void CONFIG_clear();
 void CONFIG_test();
 

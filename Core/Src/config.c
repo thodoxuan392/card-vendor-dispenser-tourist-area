@@ -11,18 +11,19 @@
 #include "Lib/utils/utils_logger.h"
 
 #define EEPROM_CONFIG_ADDRESS	0x0000
+#define	CONFIG_DEFAULT {\
+							.version = VERSION, \
+							.device_id = DEVICE_ID_DEFAULT, \
+							.password = SETTING_MODE_PASSWORD, \
+							.card_price = 10000,	\
+							.amount = 0,	\
+							.total_amount = 0,	\
+							.total_card = 0,	\
+							.total_card_by_day = 0,	\
+							.total_card_by_month = 0	\
+						};
 
-static CONFIG_t config = {
-	.version = VERSION,
-	.device_id = DEVICE_ID_DEFAULT,
-	.password = SETTING_MODE_PASSWORD,
-	.card_price = 10000,
-	.amount = 0,
-	.total_amount = 0,
-	.total_card = 0,
-	.total_card_by_day = 0,
-	.total_card_by_month = 0
-};
+static CONFIG_t config = CONFIG_DEFAULT;
 
 static bool CONFIG_set_default(CONFIG_t * config,  CONFIG_t *config_temp);
 static bool CONFIG_field_is_empty(uint8_t *data, size_t data_len);
@@ -43,6 +44,11 @@ void CONFIG_set(CONFIG_t * _config){
 	memcpy(&config, _config, sizeof(CONFIG_t));
 	EEPROM_write(EEPROM_CONFIG_ADDRESS, (uint8_t*)&config, sizeof(CONFIG_t));
 	CONFIG_printf();
+}
+
+void CONFIG_reset_default(){
+	CONFIG_t default_config = CONFIG_DEFAULT;
+	CONFIG_set(&default_config);
 }
 
 

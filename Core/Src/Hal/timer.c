@@ -10,6 +10,7 @@
 
 #include "main.h"
 #include "Hal/timer.h"
+#include "utils/utils_logger.h"
 
 #define TIMER_FN_MAX_SIZE	10
 
@@ -69,5 +70,15 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef * htim){
 		}
 	}
 }
+
+void TIMER_test(){
+	static uint32_t counter = 1000;
+	counter --;
+	if(counter == 0){
+		counter = 1000;
+		utils_log_info("Test\r\n");
+	}
+}
+
 
 #endif /* SRC_HAL_TIMER_C_ */

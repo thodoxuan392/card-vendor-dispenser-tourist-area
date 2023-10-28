@@ -22,6 +22,7 @@ enum {
 enum {
 	COMMAND_RESET,
 	COMMAND_OTA,
+	COMMAND_RESET_DEFAULT_CONFIG,
 	COMMAND_DELETE_TOTAL_CARD,
 	COMMAND_DELETE_TOTAL_AMOUNT
 };
@@ -76,6 +77,10 @@ static void COMMANDHANDLER_handle_command(uint8_t * payload, size_t payload_len)
 				utils_log_info("COMMAND_OTA\r\n");
 				OTA_set_ota_requested();
 				NVIC_SystemReset();
+				break;
+			case COMMAND_RESET_DEFAULT_CONFIG:
+				utils_log_info("COMMAND_RESET_DEFAULT_CONFIG\r\n");
+				CONFIG_reset_default();
 				break;
 			case COMMAND_DELETE_TOTAL_CARD:
 				utils_log_info("COMMAND_DELETE_TOTAL_CARD\r\n");

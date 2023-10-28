@@ -1054,35 +1054,40 @@ static LCDMNG_setting_field_t setting_field_info[] = {
 			.x_position = 2,
 			.line_position = 0
 		},
+		[LCDMNG_SETTING_FIELD_DEVICE_ID] = {
+			.name = "Ma so thiet bi",
+			.x_position = 2,
+			.line_position = 1
+		},
 		[LCDMNG_SETTING_FIELD_CARD_PRICE] = {
 			.name = "Gia tien moi the",
 			.x_position = 2,
-			.line_position = 1
+			.line_position = 2
 		},
 		[LCDMNG_SETTING_FIELD_PASSWORD] = {
 			.name = "Thay Password",
 			.x_position = 2,
-			.line_position = 2
+			.line_position = 3
 		},
 		[LCDMNG_SETTING_FIELD_TOTAL_CARD] = {
 			.name = "Thong ke the",
 			.x_position = 2,
-			.line_position = 3
+			.line_position = 4
 		},
 		[LCDMNG_SETTING_FIELD_DELETE_TOTAL_CARD] = {
 			.name = "Xoa thong ke",
 			.x_position = 2,
-			.line_position = 4
+			.line_position = 5
 		},
 		[LCDMNG_SETTING_FIELD_TOTAL_AMOUNT] = {
 			.name = "Tong thu nhap",
 			.x_position = 2,
-			.line_position = 5
+			.line_position = 6
 		},
 		[LCDMNG_SETTING_FIELD_DELETE_TOTAL_AMOUNT] = {
 			.name = "Xoa thu nhap",
 			.x_position = 2,
-			.line_position = 6
+			.line_position = 7
 		}
 };
 static const char * SAVE_CHECK = 	"   Luu thay doi ?  ";
@@ -1109,6 +1114,7 @@ static bool card_error_enable = false;
 static bool idle_enable = true;
 
 static void LCDMNG_setting_data_time(void * data, size_t data_len, uint8_t state);
+static void LCDMNG_setting_data_device_id(void * data, size_t data_len, uint8_t state);
 static void LCDMNG_setting_data_card_price(void * data, size_t data_len, uint8_t state);
 static void LCDMNG_setting_data_password(void * data, size_t data_len, uint8_t state);
 static void LCDMNG_setting_data_total_card(void * data, size_t data_len, uint8_t state);
@@ -1495,6 +1501,9 @@ void LCDMNG_set_setting_data_screen(uint32_t field_id, void * data, size_t data_
 		case LCDMNG_SETTING_FIELD_DATE_TIME:
 			LCDMNG_setting_data_time(data, data_len, state);
 			break;
+		case LCDMNG_SETTING_FIELD_DEVICE_ID:
+			LCDMNG_setting_data_device_id(data, data_len, state);
+			break;
 		case LCDMNG_SETTING_FIELD_CARD_PRICE:
 			LCDMNG_setting_data_card_price(data, data_len, state);
 			break;
@@ -1582,6 +1591,26 @@ static void LCDMNG_setting_data_time(void * data, size_t data_len, uint8_t state
 	}
 	LCDMNG_draw_string(setting_data_screen, SETTING_SCREEN_DATA_X_POSITION, SETTING_SCREEN_DATA_LINE_POSITION, data_buf);
 }
+
+static void LCDMNG_setting_data_device_id(void * data, size_t data_len, uint8_t state){
+	char data_buf[20];
+	char * device_id = (char*)data;
+	switch (state) {
+		case LCDMNG_SETTING_DATA_NOT_ENTERED:
+			snprintf(data_buf, sizeof(data_buf), "       %s", device_id);
+			break;
+		case LCDMNG_SETTING_DATA_ENTERED:
+			snprintf(data_buf, sizeof(data_buf), SAVE_CHECK);
+			break;
+		case LCDMNG_SETTING_DATA_CONFIRMED:
+			snprintf(data_buf, sizeof(data_buf), SAVED);
+			break;
+		default:
+			break;
+	}
+	LCDMNG_draw_string(setting_data_screen, SETTING_SCREEN_DATA_X_POSITION, SETTING_SCREEN_DATA_LINE_POSITION, data_buf);
+}
+
 static void LCDMNG_setting_data_card_price(void * data, size_t data_len, uint8_t state){
 	char data_buf[20];
 	uint32_t card_prices = *(uint32_t*)data;

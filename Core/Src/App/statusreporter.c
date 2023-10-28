@@ -12,7 +12,7 @@
 #include "DeviceManager/tcdmanager.h"
 #include "Lib/scheduler/scheduler.h"
 
-#define STATUSREPORT_INTERVAL		3 * 1000 	// 10s
+#define STATUSREPORT_INTERVAL		30 * 1000 	// 10s
 
 static bool timeout_flag = true;
 

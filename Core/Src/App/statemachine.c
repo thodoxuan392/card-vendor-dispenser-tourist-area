@@ -65,6 +65,7 @@ static const char * state_name[] = {
 };
 static bool timeout_for_update = true;
 static bool timeout = false;
+static uint32_t callback_card_retries = 0;
 
 bool STATEMACHINE_init(){
 	// Set TCDMNG callback
@@ -222,11 +223,31 @@ static void SM_bill_accepted(){
 }
 
 static void SM_payouting_card(){
-	TCDMNG_payout();
-	timeout = false;
-	SCH_Delete_Task(timeout_task_id);
-	timeout_task_id = SCH_Add_Task(SM_timeout, SM_TAKING_CARD_TIMEOUT, 0);
-	state = SM_WAIT_FOR_PAYOUTING_CARD;
+	// Payout card
+	if(TCDMNG_payout()){
+		// Deduce amout
+		CONFIG_t *config = CONFIG_get();
+		RTC_t rtc = RTC_get_time();
+		uint32_t amount = BILLACCEPTORMNG_get_amount();
+		// Update amount
+		amount -= config->card_price;
+		config->total_card++;
+		config->total_card_by_day++;
+		config->total_card_by_month++;
+		CONFIG_set(config);
+		BILLACCEPTORMNG_set_amount(amount);
+		LCDMNG_set_working_screen(&rtc, config->amount);
+		// Timeout to check card is taken
+		timeout = false;
+		SCH_Delete_Task(timeout_task_id);
+		timeout_task_id = SCH_Add_Task(SM_timeout, SM_TAKING_CARD_TIMEOUT, 0);
+		// Report card dispense
+		STATUSREPORTER_report_dispense(DISPENSE_DIR_OUT);
+		state = SM_WAIT_FOR_PAYOUTING_CARD;
+	} else {
+		utils_log_error("Cannot payout card\r\n");
+		state = SM_IDLE;
+	}
 }
 
 static void SM_wait_for_payouting_card(){
@@ -245,23 +266,9 @@ static void SM_wait_for_payouting_card(){
 
 	// In case idle without any error -> Deduce amount and update to screen
 	if(TCDMNG_is_in_idle()){
-		// Get property
-		amount = BILLACCEPTORMNG_get_amount();
-		config = CONFIG_get();
-		rtc = RTC_get_time();
-		// Update amount
-		amount -= config->card_price;
-		config->total_card++;
-		config->total_card_by_day++;
-		config->total_card_by_month++;
-		CONFIG_set(config);
-		BILLACCEPTORMNG_set_amount(amount);
-		LCDMNG_set_working_screen(&rtc, amount);
 		// Clear timeout
 		SCH_Delete_Task(timeout_task_id);
 		utils_log_info("Switch to SM_IDLE because TCD is in idle\r\n");
-		// Report card dispense
-		STATUSREPORTER_report_dispense(DISPENSE_DIR_OUT);
 		state = SM_IDLE;
 	}
 
@@ -325,20 +332,26 @@ static void SM_printf(){
 
 static void SM_take_card_cb(TCD_id_t id){
 	utils_log_info("TCD_%d: Card is taken\r\n", id);
-	// Get config & time
-	CONFIG_t *config = CONFIG_get();
-	RTC_t rtc = RTC_get_time();
-	uint32_t amount = BILLACCEPTORMNG_get_amount();
-	// Update amount
-	amount -= config->card_price;
-	config->total_card++;
-	config->total_card_by_day++;
-	config->total_card_by_month++;
-	CONFIG_set(config);
-	BILLACCEPTORMNG_set_amount(amount);
-	LCDMNG_set_working_screen(&rtc, config->amount);
+	callback_card_retries = 0;
 }
 
 static void SM_callback_card_cb(TCD_id_t id){
 	utils_log_info("TCD_%d: Card is callback\r\n", id);
+	CONFIG_t *config = CONFIG_get();
+	RTC_t rtc = RTC_get_time();
+	uint32_t amount = BILLACCEPTORMNG_get_amount();
+	callback_card_retries ++;
+	if(callback_card_retries > CALLBACK_CARD_RETRY_TIME){
+		utils_log_error("Callback times reached to maximum retries\r\n");
+	}else {
+		amount += config->card_price;
+		config->total_card--;
+		config->total_card_by_day--;
+		config->total_card_by_month--;
+		CONFIG_set(config);
+		BILLACCEPTORMNG_set_amount(amount);
+		LCDMNG_set_working_screen(&rtc, config->amount);
+	}
+	// Report callback card
+	STATUSREPORTER_report_dispense(DISPENSE_DIR_IN);
 }

@@ -15,6 +15,6 @@ typedef void (*TIMER_fn)(void);
 
 bool TIMER_init();
 bool TIMER_attach_intr_1ms(void (*fn)(void));
-
+void TIMER_test();
 
 #endif /* INC_HAL_TIMER_H_ */

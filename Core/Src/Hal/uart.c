@@ -91,17 +91,17 @@ bool UART_init(){
 	// Init hal
 	success = (HAL_UART_Init(uart_table[UART_1].huart_p) == HAL_OK) && success;
 	success = (HAL_UART_Init(uart_table[UART_2].huart_p) == HAL_OK) && success;
-	success = (HAL_UART_Init(uart_table[UART_3].huart_p) == HAL_OK) && success;
+//	success = (HAL_UART_Init(uart_table[UART_3].huart_p) == HAL_OK) && success;
 	success = (HAL_UART_Init(uart_table[UART_4].huart_p) == HAL_OK) && success;
 	// Init buffer
 	success = utils_buffer_init(uart_table[UART_1].buffer, sizeof(uint8_t)) && success;
 	success = utils_buffer_init(uart_table[UART_2].buffer, sizeof(uint16_t)) && success;
-	success = utils_buffer_init(uart_table[UART_3].buffer, sizeof(uint8_t)) && success;
+//	success = utils_buffer_init(uart_table[UART_3].buffer, sizeof(uint8_t)) && success;
 	success = utils_buffer_init(uart_table[UART_4].buffer, sizeof(uint8_t)) && success;
 
 	HAL_UART_Receive_IT(uart_table[UART_1].huart_p, &uart_table[UART_1].temp_data, 1);
 	HAL_UART_Receive_IT(uart_table[UART_2].huart_p, &uart_table[UART_2].temp_data, 1);
-	HAL_UART_Receive_IT(uart_table[UART_3].huart_p, &uart_table[UART_3].temp_data, 1);
+//	HAL_UART_Receive_IT(uart_table[UART_3].huart_p, &uart_table[UART_3].temp_data, 1);
 	HAL_UART_Receive_IT(uart_table[UART_4].huart_p, &uart_table[UART_4].temp_data, 1);
 	return success;
 }

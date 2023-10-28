@@ -125,6 +125,7 @@ int main(void)
 //  JSMNG_test();
 //  CONFIG_clear();
 //  WATCHDOG_test();
+//  TIMER_test();
   while (1)
   {
 	  WATCHDOG_refresh();
