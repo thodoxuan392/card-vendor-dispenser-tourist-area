@@ -23,6 +23,7 @@ void WIFIIO_init(){
 	for (int io = 0; io < WIFI_MAX; ++io) {
 		HAL_GPIO_Init(wifi_io_table[io].port, &wifi_io_table[io].init_info);
 	}
+	WIFIIO_reset(false);
 }
 
 bool WIFIIO_reset(bool enable){
