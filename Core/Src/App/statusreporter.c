@@ -11,6 +11,7 @@
 #include "DeviceManager/billacceptormanager.h"
 #include "DeviceManager/tcdmanager.h"
 #include "Lib/scheduler/scheduler.h"
+#include "Lib/netif/inc/manager/netif_manager.h"
 
 #define STATUSREPORT_INTERVAL		30 * 1000 	// 10s
 
@@ -21,6 +22,7 @@ static void STATUSREPORTER_report_status();
 static void STATUSREPORTER_build_status_topic(char * buf, char * device_id);
 static void STATUSREPORTER_build_status_payload(char * buf,
 													CONFIG_t* config,
+													uint8_t connection_type,
 													TCDMNG_Status_t tcd_status,
 													uint8_t billacepptor_status);
 static void STATUSREPORTER_build_bill_accepted_topic(char * buf, char * device_id);
@@ -80,8 +82,9 @@ static void STATUSREPORTER_report_status(){
 	// Build Payload
 	TCDMNG_Status_t tcd_status = TCDMNG_get_status();
 	uint8_t billacceptor_status = BILLACCEPTORMNG_get_status();
+	uint8_t connection_type = netif_manager_get_mode();
 
-	STATUSREPORTER_build_status_payload(message.payload, config, tcd_status, billacceptor_status);
+	STATUSREPORTER_build_status_payload(message.payload, config, connection_type, tcd_status, billacceptor_status);
 	// Send message
 	MQTT_sent_message(&message);
 }
@@ -95,12 +98,14 @@ static void STATUSREPORTER_build_status_topic(char * buf, char * device_id){
 
 static void STATUSREPORTER_build_status_payload(char * buf,
 													CONFIG_t* config,
+													uint8_t connection_type,
 													TCDMNG_Status_t tcd_status,
 													uint8_t billacepptor_status){
 	snprintf(buf,
 				PAYLOAD_MAX_LEN,
 				"{"
 					"\"v\":\"%s\","
+					"\"con_type\":\"%d\","
 					"\"pwd\":\"%s\","
 					"\"cp\":%d,"
 					"\"amt\":%d,"
@@ -113,6 +118,7 @@ static void STATUSREPORTER_build_status_payload(char * buf,
 					"\"bill\": %d"
 				"}",
 					config->version,
+					connection_type,
 					config->password,
 					config->card_price,
 					config->amount,
