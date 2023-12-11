@@ -335,11 +335,13 @@ static void KEYPADHANDLER_time(uint8_t *data, size_t data_len, uint8_t pressed_s
 			lcdmng_setting_data_state = LCDMNG_SETTING_DATA_ENTERED;
 			break;
 		case KEYPADHANDLER_SETTING_DATA_CONFIRMED:
-			KEYPADHANDLER_parse_time(data, data_len, &rtc);
-			// Update screen when set new time
-			config = CONFIG_get();
-			LCDMNG_set_working_screen_without_draw(&rtc, config->amount);
-			RTC_set_time(&rtc);
+			if(data_len > 0){
+				KEYPADHANDLER_parse_time(data, data_len, &rtc);
+				// Update screen when set new time
+				config = CONFIG_get();
+				LCDMNG_set_working_screen_without_draw(&rtc, config->amount);
+				RTC_set_time(&rtc);
+			}
 			lcdmng_setting_data_state = LCDMNG_SETTING_DATA_CONFIRMED;
 			break;
 		case KEYPADHANDLER_SETTING_DATA_CANCELLED:
@@ -375,10 +377,12 @@ static void KEYPADHANDLER_device_id( uint8_t *data, size_t data_len, uint8_t pre
 			lcdmng_setting_data_state = LCDMNG_SETTING_DATA_ENTERED;
 			break;
 		case KEYPADHANDLER_SETTING_DATA_CONFIRMED:
-			memset(config->device_id, 0 , sizeof(config->device_id));
-			KEYPADHANDLER_int_to_str(config->device_id, data, device_id_len);
-			CONFIG_set(config);
-			utils_log_info("New device_id: %s\r\n", config->device_id);
+			if(device_id_len > 0){
+				memset(config->device_id, 0 , sizeof(config->device_id));
+				KEYPADHANDLER_int_to_str(config->device_id, data, device_id_len);
+				CONFIG_set(config);
+				utils_log_info("New device_id: %s\r\n", config->device_id);
+			}
 			lcdmng_setting_data_state = LCDMNG_SETTING_DATA_CONFIRMED;
 			break;
 		case KEYPADHANDLER_SETTING_DATA_CANCELLED:
@@ -407,10 +411,12 @@ static void KEYPADHANDLER_card_prices(uint8_t *data, size_t data_len, uint8_t pr
 			lcdmng_setting_data_state = LCDMNG_SETTING_DATA_ENTERED;
 			break;
 		case KEYPADHANDLER_SETTING_DATA_CONFIRMED:
-			card_price = KEYPADHANDLER_cal_int(data, data_len);
-			config->card_price = card_price;
-			CONFIG_set(config);
-			utils_log_info("New card prices: %d\r\n", card_price);
+			if(data_len > 0){
+				card_price = KEYPADHANDLER_cal_int(data, data_len);
+				config->card_price = card_price;
+				CONFIG_set(config);
+				utils_log_info("New card prices: %d\r\n", card_price);
+			}
 			lcdmng_setting_data_state = LCDMNG_SETTING_DATA_CONFIRMED;
 			break;
 		case KEYPADHANDLER_SETTING_DATA_CANCELLED:
@@ -445,10 +451,12 @@ static void KEYPADHANDLER_password( uint8_t *data, size_t data_len, uint8_t pres
 			lcdmng_setting_data_state = LCDMNG_SETTING_DATA_ENTERED;
 			break;
 		case KEYPADHANDLER_SETTING_DATA_CONFIRMED:
-			memset(config->password, 0 , sizeof(config->password));
-			KEYPADHANDLER_int_to_str(config->password, data, password_len);
-			CONFIG_set(config);
-			utils_log_info("New password: %s\r\n", config->password);
+			if(password_len > 0){
+				memset(config->password, 0 , sizeof(config->password));
+				KEYPADHANDLER_int_to_str(config->password, data, password_len);
+				CONFIG_set(config);
+				utils_log_info("New password: %s\r\n", config->password);
+			}
 			lcdmng_setting_data_state = LCDMNG_SETTING_DATA_CONFIRMED;
 			break;
 		case KEYPADHANDLER_SETTING_DATA_CANCELLED:
