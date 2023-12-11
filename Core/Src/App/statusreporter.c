@@ -199,7 +199,7 @@ static void STATUSREPORTER_build_transaction_payload(char * buf, uint32_t transa
 	snprintf(buf,
 				PAYLOAD_MAX_LEN,
 				"{"
-					"\"bill\":%d",
+					"\"bill\":%d,"
 					"\"quantity\":%d"
 				"}",
 				transaction_bill,
