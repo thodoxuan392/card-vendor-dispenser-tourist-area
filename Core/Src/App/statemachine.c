@@ -198,6 +198,8 @@ static void SM_idle(){
 		// Get bill accepted and report to server
 		bill_value = BILLACCEPTOR_get_last_bill_accepted();
 		STATUSREPORTER_report_billaccepted(bill_value);
+		// Update Transaction Bill
+		TRANSACTION_add_bill(bill_value);
 		// Timeout to wait user can view money change
 		timeout = false;
 		timeout_task_id = SCH_Add_Task(SM_timeout, SM_BILLACCEPTOR_DURATION, 0);
@@ -214,6 +216,8 @@ static void SM_idle(){
 			state = SM_PAYOUTING_CARD;
 		}
 		return;
+	}else {
+		TRANSACTION_commit();
 	}
 }
 static void SM_bill_accepted(){
@@ -333,6 +337,7 @@ static void SM_printf(){
 static void SM_take_card_cb(TCD_id_t id){
 	utils_log_info("TCD_%d: Card is taken\r\n", id);
 	callback_card_retries = 0;
+	TRANSACTION_add_quantity(1);
 }
 
 static void SM_callback_card_cb(TCD_id_t id){

@@ -13,7 +13,7 @@
 #include "Lib/scheduler/scheduler.h"
 #include "Lib/netif/inc/manager/netif_manager.h"
 
-#define STATUSREPORT_INTERVAL		30 * 1000 	// 10s
+#define STATUSREPORT_INTERVAL		60 * 1000 	// 60s
 
 static bool timeout_flag = true;
 
@@ -29,6 +29,9 @@ static void STATUSREPORTER_build_bill_accepted_topic(char * buf, char * device_i
 static void STATUSREPORTER_build_bill_accepted_payload(char * buf, uint32_t bill_value);
 static void STATUSREPORTER_build_dispense_topic(char * buf, char * device_id);
 static void STATUSREPORTER_build_dispense_payload(char * buf, uint32_t direction);
+static void STATUSREPORTER_build_transaction_topic(char * buf, char * device_id);
+static void STATUSREPORTER_build_transaction_payload(char * buf, uint32_t transaction_bill,
+																uint32_t transaction_quantity);
 static void STATUSREPORTER_timeout();
 
 bool STATUSREPORTER_init(){
@@ -66,6 +69,20 @@ void STATUSREPORTER_report_dispense(uint32_t direction){
 	// Build Topic
 	STATUSREPORTER_build_dispense_topic(message.topic, config->device_id);
 	STATUSREPORTER_build_dispense_payload(message.payload, direction);
+	// Send message
+	MQTT_sent_message(&message);
+}
+
+
+void STATUSREPORTER_report_transaction(uint32_t transaction_bill, uint32_t transaction_quantity){
+	CONFIG_t *config = CONFIG_get();
+	MQTT_message_t message = {
+		.qos = 1,
+		.retain = 0
+	};
+	// Build Topic
+	STATUSREPORTER_build_transaction_topic(message.topic, config->device_id);
+	STATUSREPORTER_build_transaction_payload(message.payload, transaction_bill, transaction_quantity);
 	// Send message
 	MQTT_sent_message(&message);
 }
@@ -167,6 +184,26 @@ static void STATUSREPORTER_build_dispense_payload(char * buf, uint32_t direction
 					"\"dir\":%d"
 				"}",
 				direction);
+}
+
+static void STATUSREPORTER_build_transaction_topic(char * buf, char * device_id){
+	snprintf(buf,
+			TOPIC_MAX_LEN,
+			"%s/%s/rp/transaction",
+			MODEL,
+			device_id);
+}
+
+static void STATUSREPORTER_build_transaction_payload(char * buf, uint32_t transaction_bill,
+																uint32_t transaction_quantity){
+	snprintf(buf,
+				PAYLOAD_MAX_LEN,
+				"{"
+					"\"bill\":%d",
+					"\"quantity\":%d"
+				"}",
+				transaction_bill,
+				transaction_quantity);
 }
 
 static void STATUSREPORTER_timeout(){
