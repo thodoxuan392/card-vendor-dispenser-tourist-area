@@ -18,6 +18,6 @@ bool STATUSREPORTER_init();
 bool STATUSREPORTER_run();
 void STATUSREPORTER_report_billaccepted(uint32_t bill_value);
 void STATUSREPORTER_report_dispense(uint32_t direction);
-void STATUSREPORTER_report_transaction(uint32_t transaction_bill, uint32_t transaction_quantity);
+void STATUSREPORTER_report_transaction(uint32_t card_price, uint32_t transaction_quantity);
 
 #endif /* INC_APP_STATUSREPORTER_H_ */

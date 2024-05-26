@@ -198,8 +198,6 @@ static void SM_idle(){
 		// Get bill accepted and report to server
 		bill_value = BILLACCEPTOR_get_last_bill_accepted();
 		STATUSREPORTER_report_billaccepted(bill_value);
-		// Update Transaction Bill
-		TRANSACTION_add_bill(bill_value);
 		// Timeout to wait user can view money change
 		timeout = false;
 		timeout_task_id = SCH_Add_Task(SM_timeout, SM_BILLACCEPTOR_DURATION, 0);

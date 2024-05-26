@@ -10,7 +10,6 @@
 
 #include <stdint.h>
 
-void TRANSACTION_add_bill(uint32_t bill_value);
 void TRANSACTION_add_quantity(uint32_t quantity);
 void TRANSACTION_commit();
 

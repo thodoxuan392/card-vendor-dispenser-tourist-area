@@ -54,7 +54,7 @@ static char subtopic_entry[][TOPIC_MAX_LEN] = {
 
 static netif_mqtt_client_t mqtt_client = {
 		.host = "103.170.123.25",
-		.port = 1883,
+		.port = 1884,
 		.username = "pos-2023",
 		.password = "xcv123@asdkwreouox#asd",
 		.reconnect = 1,

@@ -74,7 +74,7 @@ void STATUSREPORTER_report_dispense(uint32_t direction){
 }
 
 
-void STATUSREPORTER_report_transaction(uint32_t transaction_bill, uint32_t transaction_quantity){
+void STATUSREPORTER_report_transaction(uint32_t card_price, uint32_t transaction_quantity){
 	CONFIG_t *config = CONFIG_get();
 	MQTT_message_t message = {
 		.qos = 1,
@@ -82,7 +82,7 @@ void STATUSREPORTER_report_transaction(uint32_t transaction_bill, uint32_t trans
 	};
 	// Build Topic
 	STATUSREPORTER_build_transaction_topic(message.topic, config->device_id);
-	STATUSREPORTER_build_transaction_payload(message.payload, transaction_bill, transaction_quantity);
+	STATUSREPORTER_build_transaction_payload(message.payload, card_price, transaction_quantity);
 	// Send message
 	MQTT_sent_message(&message);
 }
@@ -194,15 +194,15 @@ static void STATUSREPORTER_build_transaction_topic(char * buf, char * device_id)
 			device_id);
 }
 
-static void STATUSREPORTER_build_transaction_payload(char * buf, uint32_t transaction_bill,
+static void STATUSREPORTER_build_transaction_payload(char * buf, uint32_t card_price,
 																uint32_t transaction_quantity){
 	snprintf(buf,
 				PAYLOAD_MAX_LEN,
 				"{"
-					"\"bill\":%d,"
+					"\"price\":%d,"
 					"\"quantity\":%d"
 				"}",
-				transaction_bill,
+				card_price,
 				transaction_quantity);
 }
 

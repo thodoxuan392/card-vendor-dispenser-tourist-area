@@ -331,7 +331,8 @@ static void TCD_wait_for_payouting(TCD_HandleType_t *htcd){
 
 static void TCD_wait_for_card_in_place(TCD_HandleType_t *htcd){
 	if(htcd->timeout){
-		utils_log_error("Timeout to payout card, check card in tcd\r\n");
+		utils_log_error("Timeout to payout card, should callback card\r\n");
+		if(callback_card_cb) callback_card_cb(htcd->id);
 		SCH_Delete_Task(htcd->timeout_task_id);
 		htcd->timeout = false;
 		void * timeout_func = htcd->id == TCD_1? TCD_timeout_tcd_1 : TCD_timeout_tcd_2;
@@ -398,7 +399,7 @@ static void TCD_wait_for_updating_status(TCD_HandleType_t *htcd){
 
 static void TCD_error(TCD_HandleType_t *htcd){
 	if(htcd->timeout){
-		if(!TCDMNG_is_error()){
+		if(!TCD_is_error(htcd->id)){
 			htcd->state = TCD_IDLE;
 		}else{
 			SCH_Delete_Task(htcd->timeout_task_id);

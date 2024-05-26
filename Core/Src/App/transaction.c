@@ -7,24 +7,21 @@
 
 #include <App/transaction.h>
 
+#include <config.h>
 #include <App/statusreporter.h>
 
 
-static uint32_t transaction_bill = 0;
 static uint32_t transaction_quantity = 0;
 
-void TRANSACTION_add_bill(uint32_t bill_value){
-	transaction_bill += bill_value;
-}
 
 void TRANSACTION_add_quantity(uint32_t quantity){
 	transaction_quantity += quantity;
 }
 
 void TRANSACTION_commit(){
-	if(transaction_bill > 0 && transaction_quantity > 0){
-		STATUSREPORTER_report_transaction(transaction_bill, transaction_quantity);
-		transaction_bill = 0;
+	if(transaction_quantity > 0){
+		uint32_t cardPrice = CONFIG_get()->card_price;
+		STATUSREPORTER_report_transaction(cardPrice, transaction_quantity);
 		transaction_quantity = 0;
 	}
 }
