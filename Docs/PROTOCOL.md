@@ -4,9 +4,8 @@
 [Protocol Format](#protocol-format)
 
 -   [Command](#command-android-to-controllerbox)
--   [Status](#status)
--   [Realtime](#event)
--   [Logging Data Format for Biometrics](#logging-data-format-for-biometrics)
+-   [Status](#status-from-controllerbox-to-phone)
+-   [Event](#event-from-controllerbox-to-phone)
 -   [ResultCode](#result-code)
 
 ## Encrypt (Future Work)
