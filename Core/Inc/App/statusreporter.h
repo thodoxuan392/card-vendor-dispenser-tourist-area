@@ -11,6 +11,8 @@
 #include "stdio.h"
 #include "stdbool.h"
 
+#include "Device/rfid.h"
+
 #define DISPENSE_DIR_OUT    0
 #define DISPENSE_DIR_IN     1
 
@@ -19,5 +21,6 @@ bool STATUSREPORTER_run();
 void STATUSREPORTER_report_billaccepted(uint32_t bill_value);
 void STATUSREPORTER_report_dispense(uint32_t direction);
 void STATUSREPORTER_report_transaction(uint32_t card_price, uint32_t transaction_quantity);
+void STATUSREPORTER_report_rfid_detected(RFID_t *rfid);
 
 #endif /* INC_APP_STATUSREPORTER_H_ */

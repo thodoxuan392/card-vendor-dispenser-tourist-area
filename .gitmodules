@@ -7,3 +7,6 @@
 [submodule "Core/Lib/jsmn"]
 	path = Core/Lib/jsmn
 	url = git@github.com:thodoxuan392/jsmn.git
+[submodule "Core/Lib/PN532"]
+	path = Core/Lib/PN532
+	url = https://github.com/thodoxuan392/Adafruit-PN532.git

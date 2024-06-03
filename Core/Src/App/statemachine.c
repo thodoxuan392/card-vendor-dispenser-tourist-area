@@ -7,7 +7,6 @@
 
 
 #include "config.h"
-#include "App/mqtt.h"
 #include "App/statemachine.h"
 #include "App/statusreporter.h"
 #include "App/commandhandler.h"
@@ -74,7 +73,6 @@ bool STATEMACHINE_init(){
 }
 
 bool STATEMACHINE_run(){
-	MQTT_run();
 	STATUSREPORTER_run();
 	COMMANDHANDLER_run();
 	BILLACCEPTORMNG_run();

@@ -42,22 +42,6 @@
 #include "App/statusreporter.h"
 #include "App/statemachine.h"
 
-/* USER CODE END Includes */
-
-/* Private typedef -----------------------------------------------------------*/
-/* USER CODE BEGIN PTD */
-
-/* USER CODE END PTD */
-
-/* Private define ------------------------------------------------------------*/
-/* USER CODE BEGIN PD */
-/* USER CODE END PD */
-
-/* Private macro -------------------------------------------------------------*/
-/* USER CODE BEGIN PM */
-
-/* USER CODE END PM */
-
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -109,12 +93,12 @@ int main(void)
   KEYPADMNG_init();
   LCDMNG_init();
   // App Init
-  MQTT_init();
   COMMANDHANDLER_init();
   SCHEDULERPORT_init();
   STATUSREPORTER_init();
   STATEMACHINE_init();
   /* USER CODE END Init */
+
   /* USER CODE BEGIN 2 */
   /* USER CODE END 2 */
 
