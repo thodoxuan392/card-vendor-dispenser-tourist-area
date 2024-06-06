@@ -152,7 +152,7 @@ void RFID_test(void){
 	RFID_t rfid = {
 		.id = {163, 52, 18, 8},
 		.id_len = 4,
-		.volume = 200000,
+		.money = 200000,
 		.issueDate = { 24, 1, 7},
 	};
 	while(1){
@@ -240,9 +240,9 @@ static void RFID_buildToBlockData(RFID_t *rfid, uint8_t *data, uint32_t data_len
 	data[data_len_out++] = idKey;
 #elif defined(RFID_V2)
 	uint8_t data_len_out = 0;
-	uint16_t volume = (rfid->volume * 10) / 1000;
-	data[data_len_out++] = (volume >> 8) & 0xFF;
-	data[data_len_out++] = volume & 0xFF;
+	uint16_t money = (rfid->money * 10) / 1000;
+	data[data_len_out++] = (money >> 8) & 0xFF;
+	data[data_len_out++] = money & 0xFF;
 	data[data_len_out++] = rfid->issueDate[0];
 	data[data_len_out++] = rfid->issueDate[1];
 
@@ -287,9 +287,9 @@ static bool RFID_parseFromBlockData(uint8_t *data, uint32_t data_len, RFID_t *rf
 		return false;
 	}
 	rfid->isValid = true;
-	uint16_t volume = (uint16_t)data[0] << 8  |
+	uint16_t money = (uint16_t)data[0] << 8  |
 						data[1];
-	rfid->volume = (volume * 1000 ) / 10;
+	rfid->money = (money * 1000 ) / 10;
 	rfid->issueDate[0] = data[2];
 	rfid->issueDate[1] = data[3];
 	rfid->issueDate[2] = ((uint16_t)data[4] << 8  | data[5]) - 2000;

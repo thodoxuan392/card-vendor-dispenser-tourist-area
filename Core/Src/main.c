@@ -1,46 +1,47 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2023 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * @file           : main.c
+ * @brief          : Main program body
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (c) 2023 STMicroelectronics.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ ******************************************************************************
+ */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "Hal/clock.h"
-#include "Hal/gpio.h"
-#include "Hal/timer.h"
-#include "Hal/i2c.h"
-#include "Hal/uart.h"
-#include "Device/eeprom.h"
-#include "Device/keypad.h"
-#include "Device/billacceptor.h"
-#include "Device/rtc.h"
-#include "Device/lcd.h"
-#include "Device/tcd.h"
-#include "Device/sim7070_io.h"
-#include "Device/wifi_io.h"
-#include "DeviceManager/billacceptormanager.h"
-#include "DeviceManager/tcdmanager.h"
-#include "DeviceManager/keypadmanager.h"
 #include "App/commandhandler.h"
 #include "App/schedulerport.h"
-#include "App/statusreporter.h"
 #include "App/statemachine.h"
+#include "App/statusreporter.h"
+#include "Device/billacceptor.h"
+#include "Device/eeprom.h"
+#include "Device/genericio.h"
+#include "Device/keypad.h"
+#include "Device/lcd.h"
+#include "Device/rtc.h"
+#include "Device/sim7070_io.h"
+#include "Device/tcd.h"
+#include "Device/wifi_io.h"
+#include "DeviceManager/billacceptormanager.h"
+#include "DeviceManager/keypadmanager.h"
+#include "DeviceManager/tcdmanager.h"
+#include "Hal/clock.h"
+#include "Hal/gpio.h"
+#include "Hal/i2c.h"
+#include "Hal/timer.h"
+#include "Hal/uart.h"
 
 /* USER CODE BEGIN PFP */
 
@@ -52,18 +53,18 @@
 /* USER CODE END 0 */
 
 /**
-  * @brief  The application entry point.
-  * @retval int
-  */
-int main(void)
-{
+ * @brief  The application entry point.
+ * @retval int
+ */
+int main(void) {
   /* USER CODE BEGIN 1 */
 
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
 
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick.
+   */
   HAL_Init();
 
   /* USER CODE BEGIN Init */
@@ -79,6 +80,7 @@ int main(void)
   SCHEDULERPORT_init();
 
   // Device Init
+  GENERICIO_init();
   BILLACCEPTOR_init();
   EEPROM_init();
   TCD_init();
@@ -104,53 +106,54 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-//  UART_test();
-//  RTC_test();
-//  EEPROM_test();
-//  CONFIG_test();
-//  JSMNG_test();
-//  CONFIG_clear();
-//  WATCHDOG_test();
-//  TIMER_test();
-  while (1)
-  {
-	  WATCHDOG_refresh();
-	  STATEMACHINE_run();
-    /* USER CODE END WHILE */
-
+  //  UART_test();
+  //  RTC_test();
+  //  EEPROM_test();
+  //  CONFIG_test();
+  //  JSMNG_test();
+  //  CONFIG_clear();
+  //  WATCHDOG_test();
+  //  TIMER_test();
+  while (1) {
+    WATCHDOG_refresh();
+    STATUSREPORTER_run();
+    COMMANDHANDLER_run();
+    BILLACCEPTORMNG_run();
+    LCDMNG_run();
+    KEYPADMNG_run();
+    KEYPADHANDLER_run();
+    TCDMNG_run();
+    SCH_Dispatch_Tasks(); /* USER CODE END WHILE */
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
 }
 
-
 /**
-  * @brief  This function is executed in case of error occurrence.
-  * @retval None
-  */
-void Error_Handler(void)
-{
+ * @brief  This function is executed in case of error occurrence.
+ * @retval None
+ */
+void Error_Handler(void) {
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
-  while (1)
-  {
+  while (1) {
   }
   /* USER CODE END Error_Handler_Debug */
 }
 
-#ifdef  USE_FULL_ASSERT
+#ifdef USE_FULL_ASSERT
 /**
-  * @brief  Reports the name of the source file and the source line number
-  *         where the assert_param error has occurred.
-  * @param  file: pointer to the source file name
-  * @param  line: assert_param error line source number
-  * @retval None
-  */
-void assert_failed(uint8_t *file, uint32_t line)
-{
+ * @brief  Reports the name of the source file and the source line number
+ *         where the assert_param error has occurred.
+ * @param  file: pointer to the source file name
+ * @param  line: assert_param error line source number
+ * @retval None
+ */
+void assert_failed(uint8_t *file, uint32_t line) {
   /* USER CODE BEGIN 6 */
-  /* User can add his own implementation to report the file name and line number,
+  /* User can add his own implementation to report the file name and line
+     number,
      ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
   /* USER CODE END 6 */
 }

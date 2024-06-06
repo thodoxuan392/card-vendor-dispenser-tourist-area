@@ -8,20 +8,20 @@
 #ifndef INC_DEVICEMANAGER_TCDMANAGER_H_
 #define INC_DEVICEMANAGER_TCDMANAGER_H_
 
-#include "stdio.h"
-#include "stdbool.h"
 #include "Device/tcd.h"
+#include "stdbool.h"
+#include "stdio.h"
 
 typedef struct {
-	bool is_error;
-	bool is_lower;
-	bool is_empty;
-}TCD_status_t;
+  bool is_error;
+  bool is_lower;
+  bool is_empty;
+} TCD_status_t;
 
 typedef struct {
-	TCD_status_t TCD_1;
-	TCD_status_t TCD_2;
-}TCDMNG_Status_t;
+  TCD_status_t TCD_1;
+  TCD_status_t TCD_2;
+} TCDMNG_Status_t;
 
 typedef void (*TCDMNG_take_card_cb)(TCD_id_t id);
 typedef void (*TCDMNG_callback_card_cb)(TCD_id_t id);
@@ -42,7 +42,5 @@ bool TCDMNG_is_error();
 bool TCDMNG_is_lower();
 bool TCDMNG_is_empty();
 bool TCDMNG_is_available_for_use();
-
-
 
 #endif /* INC_DEVICEMANAGER_TCDMANAGER_H_ */

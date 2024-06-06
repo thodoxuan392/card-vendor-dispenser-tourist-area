@@ -68,9 +68,9 @@ This feature will be implemented when this product go to mass production.
     Android will send the request to dispense Card
 
     - Request:
-      | START_BYTE | PROTOCOL_ID | DATA_LEN | TCD_ID | CHECK_SUM | STOP_BYTE |
-      | ---------- | ----------- | -------- |-------- | -------- | ---------------- |
-      | 0x78 | 0x11 | 1 | ${tcdId} | | ${computationByCrc16Arc} | 0x79 |
+      | START_BYTE | PROTOCOL_ID | DATA_LEN | CHECK_SUM | STOP_BYTE |
+      | ---------- | ----------- | -------- | -------- | ---------------- |
+      | 0x78 | 0x11 | 1 | | ${computationByCrc16Arc} | 0x79 |
     - Response:
       | START_BYTE | PROTOCOL_ID | DATA_LEN | RESULT_CODE | CHECK_SUM | STOP_BYTE |
       | ---------- | ----------- | -------- | ------------- | ------------------------ | --------- |
@@ -83,14 +83,15 @@ This feature will be implemented when this product go to mass production.
     Android will send the request to update data to RFID Card.
 
     - Request:
-      | START_BYTE | PROTOCOL_ID | DATA_LEN | RFID_LEN | RFID[RFID_LEN-1:0] | MONEY[3:0] | ISSUE_DATE[2:0] | CHECK_SUM | STOP_BYTE |
-      | ---------- | ----------- | -------- |-------- | -------- | ---------------- |-------- | -------- | ---------------- |
-      | 0x78 | 0x12 | rfidLen + 8 | ${rfidLen} |${rfid} |${money} |${issueDate} | | ${computationByCrc16Arc} | 0x79 |
+      | START_BYTE | PROTOCOL_ID | DATA_LEN | RFID_INDEX | RFID_LEN | RFID[RFID_LEN-1:0] | MONEY[3:0] | ISSUE_DATE[2:0] | CHECK_SUM | STOP_BYTE |
+      | ---------- | ----------- | -------- |-------- | -------- | ---------------- |-------- | -------- | ---------------- |---------------- |
+      | 0x78 | 0x12 | rfidLen + 9 | ${rfidIndex}| ${rfidLen} |${rfid} |${money} |${issueDate} | | ${computationByCrc16Arc} | 0x79 |
     - Response:
       | START_BYTE | PROTOCOL_ID | DATA_LEN | RESULT_CODE | CHECK_SUM | STOP_BYTE |
       | ---------- | ----------- | -------- | ------------- | ------------------------ | --------- |
       | 0x78 | 0x12 | 1 | ${ResultCode} | ${computationByCrc16Arc} | 0x79 |
 
+    - rfidIndex: Index of RFID module
     - rfidLen: Number of bytes of Rfid ID
     - rfid: Id of RFID
     - money: Amount of RFID
