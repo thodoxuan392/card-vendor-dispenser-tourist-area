@@ -135,7 +135,7 @@ This feature will be implemented when this product go to mass production.
     - Request:
       | START_BYTE | PROTOCOL_ID | DATA_LEN | ERROR_FLAG[1:0]| CHECK_SUM | STOP_BYTE |
       | ---------- | ----------- | -------- | ----------- | -------- | ----------- |
-      | 0x78 | 0x37 | 1 | ${errorFlag}| ${computationByCrc16Arc} | 0x79 |
+      | 0x78 | 0x30 | 1 | ${errorFlag}| ${computationByCrc16Arc} | 0x79 |
 
     - Error Flag (16bits): Bit Mask
     - Bit 0: BILL_ACCEPTOR_ERROR
@@ -153,7 +153,7 @@ This feature will be implemented when this product go to mass production.
     - Request:
       | START_BYTE | PROTOCOL_ID | DATA_LEN | BILL_ACCEPTOR_STS| CHECK_SUM | STOP_BYTE |
       | ---------- | ----------- | -------- | ----------- | -------- | ----------- |
-      | 0x78 | 0x37 | 1 | ${billAcceptorSts}| ${computationByCrc16Arc} | 0x79 |
+      | 0x78 | 0x31 | 1 | ${billAcceptorSts}| ${computationByCrc16Arc} | 0x79 |
 
     - BILL_ACCEPTOR_STS_SUCCESS = 0x00
     - BILL_ACCEPTOR_STS_DEFECTIVE_MOTOR = 0x01
@@ -175,7 +175,7 @@ This feature will be implemented when this product go to mass production.
     - Request:
       | START_BYTE | PROTOCOL_ID | DATA_LEN | TCD_INDEX | IS_ERROR | IS_LOWER | IS_EMPTY| CHECK_SUM | STOP_BYTE |
       | ---------- | ----------- | -------- | ----------- | -------- | ----------- | ----------- | -------- | ----------- |
-      | 0x78 | 0x37 | 4 | ${tcdIndex}| ${isError}|${isLower}|${isEmpty}| ${computationByCrc16Arc} | 0x79 |
+      | 0x78 | 0x32 | 4 | ${tcdIndex}| ${isError}|${isLower}|${isEmpty}| ${computationByCrc16Arc} | 0x79 |
 
     - isError: Indicate that TCD at tcdIndex is being error.
     - isLower: Indicate that Card remaining on TCD at tcdIndex is being low.
@@ -183,7 +183,7 @@ This feature will be implemented when this product go to mass production.
 
 ## Event (From ControllerBox to Phone)
 
-1. **RFID Detected (Protocol 0x51)**
+1. **RFID Detected (Protocol 0x50)**
 
     - Request:
     - Request:
