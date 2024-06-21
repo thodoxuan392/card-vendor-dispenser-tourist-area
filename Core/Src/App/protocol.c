@@ -16,11 +16,10 @@
 
 #include <string.h>
 
-#include <Hal/uart.h>
+#include <Hal/usb.h>
 #include <Hal/timer.h>
 #include <utils/utils_logger.h>
 
-#define PROTOCOL_UART_ID	UART_1
 #define PROTOCOL_RX_QUEUE_MAX_SIZE 5
 #define PROTOCOL_BUFFER_MAX 128
 
@@ -44,14 +43,14 @@ static void PROTOCOL_onUARTCallback(uint8_t* data, uint32_t dataSize);
 void PROTOCOL_init(void)
 {
 	TIMER_attach_intr_1ms(PROTOCOL_timerInterrupt1ms);
-	BLE_setUartRxDataCallback(PROTOCOL_onUARTCallback);
+	USB_setReceiveCallback(PROTOCOL_onUARTCallback);
 }
 
 bool PROTOCOL_send(PROTOCOL_t* proto)
 {
 	size_t tx_len;
 	PROTOCOL_serialize(proto, PROTOCOL_txBuffer, &tx_len);
-	return UART_send(PROTOCOL_UART_ID, PROTOCOL_txBuffer, tx_len);
+	return USB_send(PROTOCOL_txBuffer, tx_len);
 }
 
 bool PROTOCOL_receive(PROTOCOL_t* proto)

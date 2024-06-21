@@ -9,7 +9,7 @@
 #include "DeviceManager/billacceptormanager.h"
 #include "Device/billacceptor.h"
 #include "Device/eeprom.h"
-#include "Device/lcd.h"
+
 
 #include "Lib/utils/utils_logger.h"
 #define EEPROM_AMOUNT_ADDRESS		0x01

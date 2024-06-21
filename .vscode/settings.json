@@ -1,0 +1,12 @@
+{
+    "files.associations": {
+        "tcdmanager.h": "c",
+        "bitset": "c",
+        "chrono": "c",
+        "algorithm": "c",
+        "genericio.h": "c",
+        "thread": "c",
+        "functional": "c",
+        "statemachine.h": "c"
+    }
+}

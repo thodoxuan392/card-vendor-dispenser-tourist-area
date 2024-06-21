@@ -27,15 +27,16 @@ typedef enum { RFID_ID_1 = 0, RFID_ID_2, RFID_ID_3, RFID_ID_MAX } RFID_Id_t;
 typedef struct {
   uint8_t id[RFID_ID_MAX_LENGTH];
   uint8_t id_len;
-  bool isValid;
+  uint8_t code;
   uint32_t money;
   uint8_t issueDate[3]; // [0]: Year, [1] Month, [2] Date
 } RFID_t;
 
-typedef void (*RFID_errorCallback)(RFID_Id_t id, RFID_Error_t error);
+typedef void (*RFID_UpdateResultCallback)(RFID_Id_t id, RFID_Error_t error);
 
 void RFID_init(void);
 void RFID_run(void);
+void RFID_setUpdateResultCallback(RFID_UpdateResultCallback callback);
 bool RFID_isDetected(RFID_Id_t id);
 void RFID_clearDetected(RFID_Id_t id);
 bool RFID_isPlaced(RFID_Id_t id);

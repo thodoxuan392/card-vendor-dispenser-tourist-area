@@ -87,9 +87,9 @@ This feature will be implemented when this product go to mass production.
       | ---------- | ----------- | -------- |-------- | -------- | ---------------- |-------- | -------- | ---------------- |---------------- |
       | 0x78 | 0x12 | rfidLen + 9 | ${rfidIndex}| ${rfidLen} |${rfid} |${money} |${issueDate} | | ${computationByCrc16Arc} | 0x79 |
     - Response:
-      | START_BYTE | PROTOCOL_ID | DATA_LEN | RESULT_CODE | CHECK_SUM | STOP_BYTE |
-      | ---------- | ----------- | -------- | ------------- | ------------------------ | --------- |
-      | 0x78 | 0x12 | 1 | ${ResultCode} | ${computationByCrc16Arc} | 0x79 |
+      | START_BYTE | PROTOCOL_ID | DATA_LEN | RESULT_CODE | RFID_INDEX | CHECK_SUM | STOP_BYTE |
+      | ---------- | ----------- | -------- | -------- | ------------- | ------------------------ | --------- |
+      | 0x78 | 0x12 | 2 | ${ResultCode} | ${rfidIndex} | ${computationByCrc16Arc} | 0x79 |
 
     - rfidIndex: Index of RFID module
     - rfidLen: Number of bytes of Rfid ID

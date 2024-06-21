@@ -28,20 +28,16 @@
 #include "Device/billacceptor.h"
 #include "Device/eeprom.h"
 #include "Device/genericio.h"
-#include "Device/keypad.h"
-#include "Device/lcd.h"
 #include "Device/rtc.h"
-#include "Device/sim7070_io.h"
 #include "Device/tcd.h"
-#include "Device/wifi_io.h"
 #include "DeviceManager/billacceptormanager.h"
-#include "DeviceManager/keypadmanager.h"
 #include "DeviceManager/tcdmanager.h"
 #include "Hal/clock.h"
 #include "Hal/gpio.h"
 #include "Hal/i2c.h"
 #include "Hal/timer.h"
 #include "Hal/uart.h"
+#include "Hal/watchdog.h"
 
 /* USER CODE BEGIN PFP */
 
@@ -84,16 +80,10 @@ int main(void) {
   BILLACCEPTOR_init();
   EEPROM_init();
   TCD_init();
-  KEYPAD_init();
-  LCD_init();
   RTC_init();
-  SIM7070_init();
-  WIFIIO_init();
   // Device Manager Init
   BILLACCEPTORMNG_init();
   TCDMNG_init();
-  KEYPADMNG_init();
-  LCDMNG_init();
   // App Init
   COMMANDHANDLER_init();
   SCHEDULERPORT_init();
@@ -119,9 +109,6 @@ int main(void) {
     STATUSREPORTER_run();
     COMMANDHANDLER_run();
     BILLACCEPTORMNG_run();
-    LCDMNG_run();
-    KEYPADMNG_run();
-    KEYPADHANDLER_run();
     TCDMNG_run();
     SCH_Dispatch_Tasks(); /* USER CODE END WHILE */
     /* USER CODE BEGIN 3 */
