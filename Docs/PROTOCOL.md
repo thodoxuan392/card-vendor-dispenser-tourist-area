@@ -68,9 +68,9 @@ This feature will be implemented when this product go to mass production.
     Android will send the request to dispense Card
 
     - Request:
-      | START_BYTE | PROTOCOL_ID | DATA_LEN | CHECK_SUM | STOP_BYTE |
-      | ---------- | ----------- | -------- | -------- | ---------------- |
-      | 0x78 | 0x11 | 1 | | ${computationByCrc16Arc} | 0x79 |
+      | START_BYTE | PROTOCOL_ID | DATA_LEN | TCD_INDEX | NB_CARD| CHECK_SUM | STOP_BYTE |
+      | ---------- | ----------- | -------- | -------- | -------- | -------- | ---------------- |
+      | 0x78 | 0x11 | 2 | ${tcdIndex} | ${nbCard} | ${computationByCrc16Arc} | 0x79 |
     - Response:
       | START_BYTE | PROTOCOL_ID | DATA_LEN | RESULT_CODE | CHECK_SUM | STOP_BYTE |
       | ---------- | ----------- | -------- | ------------- | ------------------------ | --------- |

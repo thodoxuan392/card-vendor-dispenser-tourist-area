@@ -25,7 +25,7 @@ bool UART_init();
 bool UART_send(UART_id_t id, uint8_t *data , size_t len);
 bool UART_receive_available(UART_id_t id);
 uint16_t UART_receive_data(UART_id_t id);
-void UART_set_callback(UART_id_t id, void (*callback)(uint8_t *data, uint8_t dataLen));
+void UART_set_callback(UART_id_t id, void (*callback)(uint8_t *data, uint32_t dataLen));
 void UART_clear_buffer(UART_id_t id);
 void UART_test();
 

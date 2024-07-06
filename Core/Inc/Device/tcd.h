@@ -15,7 +15,8 @@
 
 typedef enum {
 	TCD_1,
-	TCD_2
+	TCD_2,
+	TCD_MAX
 }TCD_id_t;
 
 bool TCD_init();

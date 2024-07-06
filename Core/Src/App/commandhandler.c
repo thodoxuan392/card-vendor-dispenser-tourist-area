@@ -156,8 +156,10 @@ static void COMMANDHANDLER_handleDispenseCard(PROTOCOL_t *proto) {
         PROTOCOL_RESULT_COMM_PROTOCOL_DATA_LEN_INVALID, 0x00);
     return;
   }
+  uint8_t tcdIndex = proto->data[0];
+  uint8_t nbCard = proto->data[1];
 
-  if (!TCDMNG_payout()) {
+  if (!TCDMNG_payoutNbCard(tcdIndex, nbCard)) {
     utils_log_error("HandleDispenseCard failed: Cannot dispense card\r\n",
                     proto->data_len);
     COMMANDHANDLER_sendDispenseCardResponse(PROTOCOL_RESULT_ERROR, 0x00);

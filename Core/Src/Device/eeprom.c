@@ -29,6 +29,10 @@ bool EEPROM_init(){
 	return true;
 }
 
+bool EEPROM_isError(){
+	return false;
+}
+
 bool EEPROM_read(uint16_t _address , uint8_t * data, size_t data_len){
 	I2C_mem_read(EEPROM_ADDRESS, _address, EEPROM_ADDRESS_SIZE, data, data_len);
 	return true;

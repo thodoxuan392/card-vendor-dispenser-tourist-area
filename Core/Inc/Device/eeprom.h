@@ -12,6 +12,7 @@
 #include "stdbool.h"
 
 bool EEPROM_init();
+bool EEPROM_isError();
 bool EEPROM_read(uint16_t address , uint8_t * data, size_t data_len);
 bool EEPROM_write(uint16_t address , uint8_t * data, size_t data_len);
 // For test IO

@@ -20,13 +20,19 @@
 #include <Hal/timer.h>
 #include <utils/utils_logger.h>
 
+#ifdef PROTOCOL_USE_UART
+#include <Hal/uart.h>
+#define PROTOCOL_UART_ID	UART_1
+#endif
 #define PROTOCOL_RX_QUEUE_MAX_SIZE 5
 #define PROTOCOL_BUFFER_MAX 128
 
 static void PROTOCOL_timerInterrupt1ms(void);
-static bool PROTOCOL_parse(uint8_t* data, size_t data_len, PROTOCOL_t* proto);
+static bool PROTOCOL_parse(uint8_t* data, size_t data_len, PROTOCOL_t* proto, bool *cleanUp, uint32_t *cutIdx);
 static uint16_t PROTOCOL_calCheckSum(uint8_t* data, uint8_t data_len);
 static void PROTOCOL_serialize(PROTOCOL_t* proto, uint8_t* data, size_t* data_len);
+static void PROTOCOL_cutBuffer(uint8_t *buffer, uint32_t bufferLenIn, uint32_t cutIdx, uint32_t *bufferLenOut);
+
 
 static PROTOCOL_t PROTOCOL_message;
 static PROTOCOL_t PROTOCOL_rxQueue[PROTOCOL_RX_QUEUE_MAX_SIZE];
@@ -43,14 +49,37 @@ static void PROTOCOL_onUARTCallback(uint8_t* data, uint32_t dataSize);
 void PROTOCOL_init(void)
 {
 	TIMER_attach_intr_1ms(PROTOCOL_timerInterrupt1ms);
+#ifdef PROTOCOL_USE_USB
 	USB_setReceiveCallback(PROTOCOL_onUARTCallback);
+#elif defined(PROTOCOL_USE_UART)
+	UART_set_callback(PROTOCOL_UART_ID, PROTOCOL_onUARTCallback);
+#endif
+}
+
+void PROTOCOL_run(void){
+	bool cleanUp = false;
+	uint32_t cutIdx = 0;
+	if(PROTOCOL_parse(PROTOCOL_rxBuffer, PROTOCOL_rxBufferLen, &PROTOCOL_message, &cleanUp, &cutIdx))
+	{
+		PROTOCOL_cutBuffer(PROTOCOL_rxBuffer, PROTOCOL_rxBufferLen, cutIdx, &PROTOCOL_rxBufferLen);
+
+		PROTOCOL_rxBufferLen = 0;
+		PROTOCOL_rxQueue[PROTOCOL_rxQueueHead] = PROTOCOL_message;
+		PROTOCOL_rxQueueHead = (PROTOCOL_rxQueueHead + 1) % PROTOCOL_RX_QUEUE_MAX_SIZE;
+	}else if(cleanUp){
+		PROTOCOL_rxBufferLen = 0;
+	}
 }
 
 bool PROTOCOL_send(PROTOCOL_t* proto)
 {
 	size_t tx_len;
 	PROTOCOL_serialize(proto, PROTOCOL_txBuffer, &tx_len);
+#ifdef PROTOCOL_USE_USB
 	return USB_send(PROTOCOL_txBuffer, tx_len);
+#elif defined(PROTOCOL_USE_UART)
+	return UART_send(UART_1, PROTOCOL_txBuffer, tx_len);
+#endif
 }
 
 bool PROTOCOL_receive(PROTOCOL_t* proto)
@@ -75,10 +104,19 @@ static void PROTOCOL_timerInterrupt1ms(void)
 	}
 }
 
-static bool PROTOCOL_parse(uint8_t* data, size_t data_len, PROTOCOL_t* proto)
+static bool PROTOCOL_parse(uint8_t* data, size_t data_len, PROTOCOL_t* proto, bool *cleanUp, uint32_t *cutIdx)
 {
-	if(data[0] != START_BYTE)
-	{
+	bool foundStartByte = false;
+	uint32_t startByteIdx = 0;
+	// Find Start Byte
+	for (startByteIdx = 0; startByteIdx < data_len; ++startByteIdx) {
+		if(data[startByteIdx] == START_BYTE){
+			foundStartByte = true;
+			break;
+		}
+	}
+	if(!foundStartByte){
+		*cleanUp = true;
 		return false;
 	}
 	uint8_t dataL = data[2];
@@ -99,6 +137,9 @@ static bool PROTOCOL_parse(uint8_t* data, size_t data_len, PROTOCOL_t* proto)
 	proto->protocol_id = data[1];
 	memcpy(proto->data, &data[3], dataL);
 	proto->data_len = dataL;
+
+	*cleanUp = false;
+	*cutIdx = startByteIdx + 6 + dataL;
 	return true;
 }
 
@@ -124,6 +165,16 @@ static void PROTOCOL_serialize(PROTOCOL_t* proto, uint8_t* data, size_t* data_le
 	*data_len = data_len_temp;
 }
 
+static void PROTOCOL_cutBuffer(uint8_t *buffer, uint32_t bufferLenIn, uint32_t cutIdx, uint32_t *bufferLenOut){
+	if(cutIdx > bufferLenIn){
+		return;
+	}
+	for (int var = cutIdx; var < bufferLenIn; ++var) {
+		buffer[var - cutIdx] = buffer[var];
+	}
+	*bufferLenOut = bufferLenIn - cutIdx;
+}
+
 static void PROTOCOL_onUARTCallback(uint8_t* data, uint32_t dataSize)
 {
 	PROTOCOL_rxTimeCnt = RX_TIMEOUT_MS;
@@ -135,15 +186,5 @@ static void PROTOCOL_onUARTCallback(uint8_t* data, uint32_t dataSize)
 
 	memcpy(&PROTOCOL_rxBuffer[PROTOCOL_rxBufferLen], data, dataSize);
 	PROTOCOL_rxBufferLen += dataSize;
-	if(PROTOCOL_parse(PROTOCOL_rxBuffer, PROTOCOL_rxBufferLen, &PROTOCOL_message))
-	{
-		PROTOCOL_rxBufferLen = 0;
-		PROTOCOL_rxQueue[PROTOCOL_rxQueueHead] = PROTOCOL_message;
-		PROTOCOL_rxQueueHead = (PROTOCOL_rxQueueHead + 1) % PROTOCOL_RX_QUEUE_MAX_SIZE;
-	}
-	else if(PROTOCOL_rxBufferLen > PROTOCOL_BUFFER_MAX)
-	{
-		// Buffer is too big, but cannot parse -> Cleaning up
-		PROTOCOL_rxBufferLen = 0;
-	}
+
 }

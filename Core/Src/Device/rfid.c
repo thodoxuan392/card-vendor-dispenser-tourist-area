@@ -7,15 +7,30 @@
 
 #include <Device/rfid.h>
 
+#include <utils/utils_logger.h>
 #include <Tp/rs485.h>
+#include <Hal/timer.h>
 
 #define RFID_485_NETWORK_ID	0x01	// RFID Network in RS485 is 0x01
 
 #define RFID_485_MASTER_NODE_ID 0xFF
 
-#define RFID_485_MESSAGE_ID_DETECTED 0x01
-#define RFID_485_MESSAGE_ID_UPDATE 0x02
-#define RFID_485_MESSAGE_ID_UPDATE_RESULT 0x03
+#define RFID_485_MESSAGE_ID_REQUEST_STATUS 0x01
+#define RFID_485_MESSAGE_ID_RESPONSE_STATUS 0x02
+#define RFID_485_MESSAGE_ID_REQUEST_UPDATE 0x03
+#define RFID_485_MESSAGE_ID_RESPONSE_UPDATE 0x04
+
+#define RFID_485_MESSAGE_ID_REQUEST_STATUS_TIMEOUT	1000	// 500ms
+#define RFID_485_MESSAGE_ID_REQUEST_UPDATE_TIMEOUT	1000	// 500ms
+
+#define RFID_485_STATUS_POLLING_INTERVAL 	100	// 500ms
+
+
+typedef enum {
+	RFID_STATE_IDLE,
+	RFID_STATE_WAIT_FOR_STATUS_RESPONSE,
+	RFID_STATE_WAIT_FOR_UPDATE_RESPONSE,
+}RFID_HandleState;
 
 typedef struct
 {
@@ -23,24 +38,68 @@ typedef struct
 	bool isPlaced;
 	bool isDetected;
 	RFID_t rfid;
+
+	// For RFID Update
+	RS485_Message updateMessage;
+	bool updatePending;
+	bool updateResponseIndicator;
+
+	// For RFID Status
+	uint32_t statusPollingCnt;
+	bool statusPollingPending;
+	bool statusResponseIndicator;
+
+	// Timeout
+	uint32_t timeoutCnt;
+	bool timeoutFlag;
 } RFID_Handle;
+
+
+static void RFID_interrupt1ms(void);
+
+static void RFID_runIdle(void);
+static void RFID_runWaitForStatusResponse(void);
+static void RFID_runWaitForUpdateResponse(void);
 
 // Validate Function
 static bool RFID_Is485MessageValid(RS485_Message *message);
+static RFID_Id_t RFID_getCurrHandleRfid(void);
+static RFID_Id_t RFID_switchToNextRfid(void);
 
-static bool RFID_handleDetected(RS485_Message* message);
-static bool RFID_handleUpdateResult(RS485_Message* message);
+static bool RFID_requestStatus(RFID_Id_t id);
+static bool RFID_handleResponseStatus(RS485_Message* message);
+static bool RFID_handleResponseUpdate(RS485_Message* message);
 
 static RFID_Handle RFID_handleTable[RFID_ID_MAX];
+static RFID_HandleState RFID_handleState = RFID_STATE_IDLE;
+static RFID_Id_t RFID_handleId = RFID_ID_1;
 static RS485_Message RFID_rs485Message;
 static RFID_UpdateResultCallback RFID_updateResultCallback;
 
 void RFID_init(void)
 {
+	for (int id = 0; id < RFID_ID_MAX; ++id) {
+		RFID_handleTable[id].statusPollingPending = true;
+	}
+	TIMER_attach_intr_1ms(RFID_interrupt1ms);
 }
 
 void RFID_run(void)
 {
+	switch (RFID_handleState) {
+		case RFID_STATE_IDLE:
+			RFID_runIdle();
+			break;
+		case RFID_STATE_WAIT_FOR_STATUS_RESPONSE:
+			RFID_runWaitForStatusResponse();
+			break;
+		case RFID_STATE_WAIT_FOR_UPDATE_RESPONSE:
+			RFID_runWaitForUpdateResponse();
+			break;
+		default:
+			break;
+	}
+	// Polling for RFID
 	if(RS485_receive(&RFID_rs485Message))
 	{
 		if(!RFID_Is485MessageValid(&RFID_rs485Message)){
@@ -48,11 +107,11 @@ void RFID_run(void)
 		}
 		switch(RFID_rs485Message.messageId)
 		{
-			case RFID_485_MESSAGE_ID_DETECTED:
-				RFID_handleDetected(&RFID_rs485Message);
+			case RFID_485_MESSAGE_ID_RESPONSE_STATUS:
+				RFID_handleResponseStatus(&RFID_rs485Message);
 				break;
-			case RFID_485_MESSAGE_ID_UPDATE_RESULT:
-				RFID_handleUpdateResult(&RFID_rs485Message);
+			case RFID_485_MESSAGE_ID_RESPONSE_UPDATE:
+				RFID_handleResponseUpdate(&RFID_rs485Message);
 				break;
 			default:
 				break;
@@ -86,28 +145,26 @@ void RFID_clearDetected(RFID_Id_t id)
 
 RFID_Error_t RFID_set(RFID_Id_t id, RFID_t* rfid)
 {
-	RFID_rs485Message.networkId = RFID_485_NETWORK_ID;
-	RFID_rs485Message.srcNode = RFID_485_MASTER_NODE_ID;
-	RFID_rs485Message.desNode = id;
-	RFID_rs485Message.messageId = RFID_485_MESSAGE_ID_UPDATE;
-	RFID_rs485Message.resultCode = RS485_RESULT_CODE_SUCCESS;
-	RFID_rs485Message.dataLen = 0;
-	RFID_rs485Message.data[RFID_rs485Message.dataLen++] = rfid->id_len;
+	RFID_handleTable[id].updateMessage.networkId = RFID_485_NETWORK_ID;
+	RFID_handleTable[id].updateMessage.srcNode = RFID_485_MASTER_NODE_ID;
+	RFID_handleTable[id].updateMessage.desNode = id;
+	RFID_handleTable[id].updateMessage.messageId = RFID_485_MESSAGE_ID_REQUEST_UPDATE;
+	RFID_handleTable[id].updateMessage.resultCode = RS485_RESULT_CODE_SUCCESS;
+	RFID_handleTable[id].updateMessage.dataLen = 0;
+	RFID_handleTable[id].updateMessage.data[RFID_handleTable[id].updateMessage.dataLen++] = rfid->id_len;
 	for(uint8_t i = 0; i < rfid->id_len; i++)
 	{
-		RFID_rs485Message.data[RFID_rs485Message.dataLen++] = rfid->id[i];
+		RFID_handleTable[id].updateMessage.data[RFID_handleTable[id].updateMessage.dataLen++] = rfid->id[i];
 	}
-	RFID_rs485Message.data[RFID_rs485Message.dataLen++] = rfid->code;
-	RFID_rs485Message.data[RFID_rs485Message.dataLen++] = rfid->money >> 24;
-	RFID_rs485Message.data[RFID_rs485Message.dataLen++] = rfid->money >> 16;
-	RFID_rs485Message.data[RFID_rs485Message.dataLen++] = rfid->money >> 8;
-	RFID_rs485Message.data[RFID_rs485Message.dataLen++] = rfid->money & 0xFF;
-	RFID_rs485Message.data[RFID_rs485Message.dataLen++] = rfid->issueDate[0];
-	RFID_rs485Message.data[RFID_rs485Message.dataLen++] = rfid->issueDate[1];
-	RFID_rs485Message.data[RFID_rs485Message.dataLen++] = rfid->issueDate[2];
-	if(!RS485_send(&RFID_rs485Message)){
-		return false;
-	}
+	RFID_handleTable[id].updateMessage.data[RFID_handleTable[id].updateMessage.dataLen++] = rfid->code;
+	RFID_handleTable[id].updateMessage.data[RFID_handleTable[id].updateMessage.dataLen++] = rfid->money >> 24;
+	RFID_handleTable[id].updateMessage.data[RFID_handleTable[id].updateMessage.dataLen++] = rfid->money >> 16;
+	RFID_handleTable[id].updateMessage.data[RFID_handleTable[id].updateMessage.dataLen++] = rfid->money >> 8;
+	RFID_handleTable[id].updateMessage.data[RFID_handleTable[id].updateMessage.dataLen++] = rfid->money & 0xFF;
+	RFID_handleTable[id].updateMessage.data[RFID_handleTable[id].updateMessage.dataLen++] = rfid->issueDate[0];
+	RFID_handleTable[id].updateMessage.data[RFID_handleTable[id].updateMessage.dataLen++] = rfid->issueDate[1];
+	RFID_handleTable[id].updateMessage.data[RFID_handleTable[id].updateMessage.dataLen++] = rfid->issueDate[2];
+	RFID_handleTable[id].updatePending = true;
 	return true;
 }
 
@@ -136,6 +193,62 @@ void RFID_test(void)
 	}
 }
 
+static void RFID_runIdle(){
+	RFID_Id_t id = RFID_getCurrHandleRfid();
+	if(RFID_handleTable[id].updatePending){
+		RS485_send(&RFID_handleTable[id].updateMessage);
+		RFID_handleTable[id].timeoutFlag = false;
+		RFID_handleTable[id].timeoutCnt = RFID_485_MESSAGE_ID_REQUEST_UPDATE_TIMEOUT;
+		RFID_handleState = RFID_STATE_WAIT_FOR_UPDATE_RESPONSE;
+		return;
+	}
+
+	if(RFID_handleTable[id].statusPollingPending){
+		RFID_requestStatus(id);
+		RFID_handleTable[id].timeoutFlag = false;
+		RFID_handleTable[id].timeoutCnt = RFID_485_MESSAGE_ID_REQUEST_STATUS_TIMEOUT;
+		RFID_handleState = RFID_STATE_WAIT_FOR_STATUS_RESPONSE;
+		return;
+	}
+}
+
+static void RFID_runWaitForStatusResponse(){
+	RFID_Id_t id = RFID_getCurrHandleRfid();
+	// Success case
+	if(RFID_handleTable[id].statusResponseIndicator){
+		RFID_handleTable[id].statusResponseIndicator = false;
+		RFID_handleState = RFID_STATE_IDLE;
+		RFID_switchToNextRfid();
+		return;
+	}
+
+	// Timeout case
+	if(RFID_handleTable[id].timeoutFlag){
+		utils_log_error("[RFID] Timeout to wait for status response from RFID id %d\r\n", id);
+		RFID_handleState = RFID_STATE_IDLE;
+		RFID_switchToNextRfid();
+		return;
+	}
+}
+
+static void RFID_runWaitForUpdateResponse(){
+	RFID_Id_t id = RFID_getCurrHandleRfid();
+	// Success case
+	if(RFID_handleTable[id].updateResponseIndicator){
+		RFID_handleTable[id].updateResponseIndicator = false;
+		RFID_handleState = RFID_STATE_IDLE;
+		RFID_switchToNextRfid();
+		return;
+	}
+
+	// Timeout case
+	if(RFID_handleTable[id].timeoutFlag){
+		utils_log_error("[RFID] Timeout to wait for update response from RFID id %d\r\n", id);
+		RFID_handleState = RFID_STATE_IDLE;
+		return;
+	}
+}
+
 static bool RFID_Is485MessageValid(RS485_Message *message){
 	if(message->networkId != RFID_485_NETWORK_ID){
 		return false;
@@ -144,49 +257,67 @@ static bool RFID_Is485MessageValid(RS485_Message *message){
 	{
 		return false;
 	}
-	if(!(message->srcNode >= RFID_ID_1 && message->srcNode <= RFID_ID_3))
+	if(!(message->srcNode >= RFID_ID_1 && message->srcNode < RFID_ID_MAX))
 	{
 		return false;
 	}
 	return true;
 }
 
-static bool RFID_handleDetected(RS485_Message* message)
+
+static RFID_Id_t RFID_getCurrHandleRfid(void){
+	return RFID_handleId;
+}
+static RFID_Id_t RFID_switchToNextRfid(void){
+	RFID_handleId = (RFID_handleId + 1) % RFID_ID_MAX;
+}
+
+static bool RFID_requestStatus(RFID_Id_t id){
+	RFID_rs485Message.networkId = RFID_485_NETWORK_ID;
+	RFID_rs485Message.srcNode = RFID_485_MASTER_NODE_ID;
+	RFID_rs485Message.desNode = id;
+	RFID_rs485Message.messageId = RFID_485_MESSAGE_ID_REQUEST_STATUS;
+	RFID_rs485Message.resultCode = RS485_RESULT_CODE_SUCCESS;
+	RFID_rs485Message.dataLen = 0;
+	RS485_send(&RFID_rs485Message);
+}
+
+static bool RFID_handleResponseStatus(RS485_Message* message)
 {
-	if(message->desNode != RFID_485_MASTER_NODE_ID)
-	{
-		return false;
-	}
-	if(!(message->srcNode >= RFID_ID_1 && message->srcNode <= RFID_ID_3))
-	{
-		return false;
-	}
 	uint8_t srcNode = message->srcNode;
 
-	RFID_handleTable[srcNode].isDetected = message->data[0];
-	RFID_handleTable[srcNode].rfid.id_len = message->data[1];
-	for(int var = 0; var < RFID_handleTable[srcNode].rfid.id_len; ++var)
-	{
-		RFID_handleTable[srcNode].rfid.id[var] = message->data[2 + var];
-	}
-	RFID_handleTable[srcNode].rfid.code = message->data[2 + RFID_handleTable[srcNode].rfid.id_len];
-	RFID_handleTable[srcNode].rfid.money =
-		((uint32_t)message->data[3 + RFID_handleTable[srcNode].rfid.id_len] << 24) |
-		((uint32_t)message->data[4 + RFID_handleTable[srcNode].rfid.id_len] << 16) |
-		((uint32_t)message->data[5 + RFID_handleTable[srcNode].rfid.id_len] << 8) |
-		((uint32_t)message->data[6 + RFID_handleTable[srcNode].rfid.id_len]);
-	RFID_handleTable[srcNode].rfid.issueDate[0] =
-		message->data[7 + RFID_handleTable[srcNode].rfid.id_len];
-	RFID_handleTable[srcNode].rfid.issueDate[1] =
-		message->data[8 + RFID_handleTable[srcNode].rfid.id_len];
-	RFID_handleTable[srcNode].rfid.issueDate[2] =
-		message->data[9 + RFID_handleTable[srcNode].rfid.id_len];
+	if(message->resultCode == RS485_RESULT_CODE_SUCCESS){
+		RFID_handleTable[srcNode].rfid.id_len = message->data[0];
+		for(int var = 0; var < RFID_handleTable[srcNode].rfid.id_len; ++var)
+		{
+			RFID_handleTable[srcNode].rfid.id[var] = message->data[1 + var];
+		}
+		RFID_handleTable[srcNode].rfid.code = message->data[1 + RFID_handleTable[srcNode].rfid.id_len];
+		RFID_handleTable[srcNode].rfid.money =
+			((uint32_t)message->data[2 + RFID_handleTable[srcNode].rfid.id_len] << 24) |
+			((uint32_t)message->data[3 + RFID_handleTable[srcNode].rfid.id_len] << 16) |
+			((uint32_t)message->data[4 + RFID_handleTable[srcNode].rfid.id_len] << 8) |
+			((uint32_t)message->data[5 + RFID_handleTable[srcNode].rfid.id_len]);
+		RFID_handleTable[srcNode].rfid.issueDate[0] =
+			message->data[6 + RFID_handleTable[srcNode].rfid.id_len];
+		RFID_handleTable[srcNode].rfid.issueDate[1] =
+			message->data[7 + RFID_handleTable[srcNode].rfid.id_len];
+		RFID_handleTable[srcNode].rfid.issueDate[2] =
+			message->data[8 + RFID_handleTable[srcNode].rfid.id_len];
+		if(!RFID_handleTable[srcNode].isPlaced){
+			RFID_handleTable[srcNode].isDetected = true;
+		}
+		RFID_handleTable[srcNode].isPlaced = true;
 
+	}else {
+		RFID_handleTable[srcNode].isPlaced = false;
+	}
+	RFID_handleTable[srcNode].statusResponseIndicator = true;
 	return true;
 }
 
 
-static bool RFID_handleUpdateResult(RS485_Message* message)
+static bool RFID_handleResponseUpdate(RS485_Message* message)
 {
 	uint8_t srcNode = message->srcNode;
 
@@ -194,5 +325,23 @@ static bool RFID_handleUpdateResult(RS485_Message* message)
 
 	if(RFID_updateResultCallback){
 		RFID_updateResultCallback(srcNode , error);
+	}
+}
+
+static void RFID_interrupt1ms(void){
+	for (int id = 0; id < RFID_ID_MAX; ++id) {
+		if(RFID_handleTable[id].timeoutCnt > 0){
+			RFID_handleTable[id].timeoutCnt--;
+			if(RFID_handleTable[id].timeoutCnt == 0){
+				RFID_handleTable[id].timeoutFlag = true;
+			}
+		}
+		if(RFID_handleTable[id].statusPollingCnt > 0){
+			RFID_handleTable[id].statusPollingCnt--;
+			if(RFID_handleTable[id].statusPollingCnt == 0){
+				RFID_handleTable[id].statusPollingCnt = RFID_485_STATUS_POLLING_INTERVAL;
+				RFID_handleTable[id].statusPollingPending = true;
+			}
+		}
 	}
 }

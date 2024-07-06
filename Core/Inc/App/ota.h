@@ -11,8 +11,8 @@
 #include "stdio.h"
 #include "stdbool.h"
 
-#define NO_OTA			0
-#define FACTORY			1
+#define NO_OTA			1
+#define FACTORY			0
 #define CURRENT			0
 
 /*

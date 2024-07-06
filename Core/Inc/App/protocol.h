@@ -12,6 +12,9 @@
 #include <stdint.h>
 #include <stdio.h>
 
+//#define PROTOCOL_USE_USB
+#define PROTOCOL_USE_UART
+
 #define START_BYTE 0x78
 #define STOP_BYTE 0x79
 #define DATA_MAX_LENGTH 255
@@ -68,6 +71,7 @@ typedef enum {
 } PROTOCOL_ResultCode_t;
 
 void PROTOCOL_init(void);
+void PROTOCOL_run(void);
 bool PROTOCOL_send(PROTOCOL_t *proto);
 bool PROTOCOL_receive(PROTOCOL_t *proto);
 

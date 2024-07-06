@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+
 typedef void (*USB_ReceiveCallback)(uint8_t *data, uint32_t dataLen);
 
 void USB_init(void);

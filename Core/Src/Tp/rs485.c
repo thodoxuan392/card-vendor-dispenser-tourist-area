@@ -19,16 +19,17 @@
 #include <Hal/timer.h>
 #include <utils/utils_logger.h>
 
-#define RS485_UART_ID UART_1
+#define RS485_UART_ID UART_3
 #define RS485_RX_MESSAGE_QUEUE_MAX_SIZE 5
 #define RS485_TX_BUFFER_MAX 1024
-#define RS485_RX_BUFFER_MAX 1024
-#define RS485_RX_TIMEOUT 500
+#define RS485_RX_BUFFER_MAX 512
+#define RS485_RX_TIMEOUT 2000
 
-static void RS485_MessageimerInterrupt1ms(void);
-static bool RS485_parse(uint8_t* data, size_t data_len, RS485_Message* message);
+static void RS485_interrupt1ms(void);
+static bool RS485_parse(uint8_t* data, size_t data_len, RS485_Message* message, bool *cleanUp, uint32_t* cutIdx);
 static uint16_t RS485_calCheckSum(uint8_t* data, uint8_t data_len);
 static void RS485_serialize(RS485_Message* message, uint8_t* data, size_t* data_len);
+static void RS485_cutBuffer(uint8_t *buffer, uint32_t bufferLenIn, uint32_t cutIdx, uint32_t *bufferLenOut);
 
 static RS485_Message RS485_message;
 static RS485_Message RS485_rxQueue[RS485_RX_MESSAGE_QUEUE_MAX_SIZE];
@@ -44,8 +45,24 @@ static void RS485_onUARTCallback(uint8_t* data, uint32_t dataSize);
 
 void RS485_init(void)
 {
-	TIMER_attach_intr_1ms(RS485_MessageimerInterrupt1ms);
+	TIMER_attach_intr_1ms(RS485_interrupt1ms);
 	UART_set_callback(RS485_UART_ID, RS485_onUARTCallback);
+}
+
+
+void RS485_run(void){
+	bool cleanUp = false;
+	uint32_t cutIdx = 0;
+	if(RS485_parse(RS485_rxBuffer, RS485_rxBufferLen, &RS485_message, &cleanUp, &cutIdx))
+	{
+		// Cut Buffer
+		RS485_cutBuffer(RS485_rxBuffer, RS485_rxBufferLen, cutIdx, &RS485_rxBufferLen);
+
+		RS485_rxQueue[RS485_rxQueueHead] = RS485_message;
+		RS485_rxQueueHead = (RS485_rxQueueHead + 1) % RS485_RX_MESSAGE_QUEUE_MAX_SIZE;
+	}else if(cleanUp){
+		RS485_rxBufferLen = 0;
+	}
 }
 
 bool RS485_send(RS485_Message* message)
@@ -66,7 +83,7 @@ bool RS485_receive(RS485_Message* message)
 	return false;
 }
 
-static void RS485_MessageimerInterrupt1ms(void)
+static void RS485_interrupt1ms(void)
 {
 	if(RS485_rxTimeCnt > 0)
 	{
@@ -78,30 +95,39 @@ static void RS485_MessageimerInterrupt1ms(void)
 	}
 }
 
-static bool RS485_parse(uint8_t* data, size_t data_len, RS485_Message* message)
+static bool RS485_parse(uint8_t* data, size_t data_len, RS485_Message* message, bool *cleanUp, uint32_t *cutIdx)
 {
-	if(data[0] != RS485_MESSAGE_START_BYTE)
-	{
+	bool foundStartByte = false;
+	uint32_t startByteIdx = 0;
+	// Find Start Byte
+	for (startByteIdx = 0; startByteIdx < data_len; ++startByteIdx) {
+		if(data[startByteIdx] == RS485_MESSAGE_START_BYTE){
+			foundStartByte = true;
+			break;
+		}
+	}
+	if(!foundStartByte){
+		*cleanUp = true;
 		return false;
 	}
-	RS485_NetworkId networkId = data[1];
-	RS485_NodeId srcNode = data[2];
-	RS485_NodeId desNode = data[3];
-	RS485_MessageId messageId = data[4];
-	RS485_ResultCode resultCode = data[5];
+	RS485_NetworkId networkId = data[startByteIdx + 1];
+	RS485_NodeId srcNode = data[startByteIdx + 2];
+	RS485_NodeId desNode = data[startByteIdx + 3];
+	RS485_MessageId messageId = data[startByteIdx + 4];
+	RS485_ResultCode resultCode = data[startByteIdx + 5];
 
-	uint8_t dataL = data[6];
-	uint16_t expectedChecksum = RS485_calCheckSum(&data[7], dataL);
-	uint16_t checksum = ((uint16_t)data[7 + dataL] << 8) | data[8 + dataL];
+	uint8_t dataL = data[startByteIdx + 6];
+	uint16_t expectedChecksum = RS485_calCheckSum(&data[startByteIdx + 7], dataL);
+	uint16_t checksum = ((uint16_t)data[startByteIdx + 7 + dataL] << 8) | data[startByteIdx + 8 + dataL];
 	if(expectedChecksum != checksum)
 	{
 		return false;
 	}
-	if(data[9 + dataL] != RS485_MESSAGE_STOP_BYTE)
+	if(data[startByteIdx + 9 + dataL] != RS485_MESSAGE_STOP_BYTE)
 	{
 		return false;
 	}
-	if(data_len < 10 + dataL)
+	if(data_len < startByteIdx + 10 + dataL)
 	{
 		return false;
 	}
@@ -110,8 +136,11 @@ static bool RS485_parse(uint8_t* data, size_t data_len, RS485_Message* message)
 	message->desNode = desNode;
 	message->messageId = messageId;
 	message->resultCode = resultCode;
-	memcpy(message->data, &data[7], dataL);
+	memcpy(message->data, &data[startByteIdx + 7], dataL);
 	message->dataLen = dataL;
+
+	*cleanUp = false;
+	*cutIdx = startByteIdx + 10 + dataL;
 	return true;
 }
 
@@ -128,6 +157,7 @@ static void RS485_serialize(RS485_Message* message, uint8_t* data, size_t* data_
 	data[data_len_temp++] = message->srcNode;
 	data[data_len_temp++] = message->desNode;
 	data[data_len_temp++] = message->messageId;
+	data[data_len_temp++] = message->resultCode;
 	data[data_len_temp++] = message->dataLen;
 	for(int var = 0; var < message->dataLen; ++var)
 	{
@@ -140,6 +170,17 @@ static void RS485_serialize(RS485_Message* message, uint8_t* data, size_t* data_
 	*data_len = data_len_temp;
 }
 
+
+static void RS485_cutBuffer(uint8_t *buffer, uint32_t bufferLenIn, uint32_t cutIdx, uint32_t *bufferLenOut){
+	if(cutIdx > bufferLenIn){
+		return;
+	}
+	for (int var = cutIdx; var < bufferLenIn; ++var) {
+		buffer[var - cutIdx] = buffer[var];
+	}
+	*bufferLenOut = bufferLenIn - cutIdx;
+}
+
 static void RS485_onUARTCallback(uint8_t* data, uint32_t dataSize)
 {
 	RS485_rxTimeCnt = RS485_RX_TIMEOUT;
@@ -147,19 +188,8 @@ static void RS485_onUARTCallback(uint8_t* data, uint32_t dataSize)
 	{
 		utils_log_error("[PROTOCOL] Rx buffer overflow, cleaning up\r\n");
 		RS485_rxBufferLen = 0;
+		return;
 	}
-
 	memcpy(&RS485_rxBuffer[RS485_rxBufferLen], data, dataSize);
 	RS485_rxBufferLen += dataSize;
-	if(RS485_parse(RS485_rxBuffer, RS485_rxBufferLen, &RS485_message))
-	{
-		RS485_rxBufferLen = 0;
-		RS485_rxQueue[RS485_rxQueueHead] = RS485_message;
-		RS485_rxQueueHead = (RS485_rxQueueHead + 1) % RS485_RX_MESSAGE_QUEUE_MAX_SIZE;
-	}
-	else if(RS485_rxBufferLen > RS485_RX_BUFFER_MAX)
-	{
-		// Buffer is too big, but cannot parse -> Cleaning up
-		RS485_rxBufferLen = 0;
-	}
 }

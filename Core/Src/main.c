@@ -21,9 +21,10 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "config.h"
+#include "App/protocol.h"
 #include "App/commandhandler.h"
 #include "App/schedulerport.h"
-#include "App/statemachine.h"
 #include "App/statusreporter.h"
 #include "Device/billacceptor.h"
 #include "Device/eeprom.h"
@@ -38,6 +39,7 @@
 #include "Hal/timer.h"
 #include "Hal/uart.h"
 #include "Hal/watchdog.h"
+#include "Lib/scheduler/scheduler.h"
 
 /* USER CODE BEGIN PFP */
 
@@ -70,10 +72,9 @@ int main(void) {
   TIMER_init();
   UART_init();
   I2C_init();
-  WATCHDOG_init();
+//  WATCHDOG_init();
   // Init
   CONFIG_init();
-  SCHEDULERPORT_init();
 
   // Device Init
   GENERICIO_init();
@@ -85,10 +86,10 @@ int main(void) {
   BILLACCEPTORMNG_init();
   TCDMNG_init();
   // App Init
+  PROTOCOL_init();
   COMMANDHANDLER_init();
   SCHEDULERPORT_init();
   STATUSREPORTER_init();
-  STATEMACHINE_init();
   /* USER CODE END Init */
 
   /* USER CODE BEGIN 2 */
@@ -105,11 +106,12 @@ int main(void) {
   //  WATCHDOG_test();
   //  TIMER_test();
   while (1) {
-    WATCHDOG_refresh();
+//    WATCHDOG_refresh();
     STATUSREPORTER_run();
+    PROTOCOL_run();
     COMMANDHANDLER_run();
-    BILLACCEPTORMNG_run();
-    TCDMNG_run();
+//    BILLACCEPTORMNG_run();
+//    TCDMNG_run();
     SCH_Dispatch_Tasks(); /* USER CODE END WHILE */
     /* USER CODE BEGIN 3 */
   }

@@ -12,15 +12,17 @@
 #include "stdbool.h"
 #include "stdio.h"
 
-typedef struct {
-  bool is_error;
-  bool is_lower;
-  bool is_empty;
+typedef struct
+{
+	bool is_error;
+	bool is_lower;
+	bool is_empty;
 } TCD_status_t;
 
-typedef struct {
-  TCD_status_t TCD_1;
-  TCD_status_t TCD_2;
+typedef struct
+{
+	TCD_status_t TCD_1;
+	TCD_status_t TCD_2;
 } TCDMNG_Status_t;
 
 typedef void (*TCDMNG_take_card_cb)(TCD_id_t id);
@@ -30,13 +32,14 @@ void TCDMNG_init();
 void TCDMNG_set_take_card_cb(TCDMNG_take_card_cb callback);
 void TCDMNG_set_callback_card_cb(TCDMNG_callback_card_cb callback);
 void TCDMNG_run();
-TCDMNG_Status_t TCDMNG_get_status();
+TCD_status_t TCDMNG_get_status(TCD_id_t id);
 uint8_t TCDMNG_get_state();
 bool TCDMNG_is_in_idle();
 bool TCDMNG_is_in_processing();
 bool TCDMNG_is_in_error();
 void TCDMNG_reset();
 bool TCDMNG_payout();
+bool TCDMNG_payoutNbCard(TCD_id_t id, uint8_t nbCard);
 bool TCDMNG_callback();
 bool TCDMNG_is_error();
 bool TCDMNG_is_lower();

@@ -93,7 +93,7 @@ static bool CONFIG_set_default(CONFIG_t *_config, CONFIG_t *config_temp) {
     memcpy(_config->password, config_temp->password, sizeof(_config->password));
   }
   // Set EnableStsPolling
-  if (!CONFIG_field_is_empty((uint8_t *)config_temp->enableStsPolling,
+  if (!CONFIG_field_is_empty((uint8_t *)&config_temp->enableStsPolling,
                              sizeof(config_temp->enableStsPolling))) {
     memcpy(_config->enableStsPolling, config_temp->enableStsPolling,
            sizeof(_config->enableStsPolling));

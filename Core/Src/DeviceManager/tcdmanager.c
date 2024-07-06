@@ -117,11 +117,17 @@ void TCDMNG_run() {
   TCD_run(&htcd_2);
 }
 
-TCDMNG_Status_t TCDMNG_get_status() {
-  TCDMNG_Status_t status;
-  status.TCD_1 = htcd_1.status;
-  status.TCD_2 = htcd_2.status;
-  return status;
+TCD_status_t TCDMNG_get_status(TCD_id_t id){
+	switch (id) {
+		case TCD_1:
+			return htcd_1.status;
+			break;
+		case TCD_2:
+			return htcd_2.status;
+			break;
+		default:
+			break;
+	}
 }
 
 bool TCDMNG_is_in_idle() {
@@ -165,6 +171,11 @@ bool TCDMNG_payout() {
     }
   }
   return true;
+}
+
+
+bool TCDMNG_payoutNbCard(TCD_id_t id, uint8_t nbCard){
+  
 }
 
 bool TCDMNG_callback() {

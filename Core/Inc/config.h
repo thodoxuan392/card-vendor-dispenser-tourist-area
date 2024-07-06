@@ -28,7 +28,7 @@
 #define BOARD_VERSION_PATCH 0
 #endif
 
-#define MODEL "card-vendor"
+#define MODEL "cd_tx"
 
 #define MANUAL_MODE_PASSWORD "987654321"
 
