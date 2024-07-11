@@ -148,34 +148,23 @@ void TCDMNG_reset() {
   htcd_2.state = TCD_RESETING;
 }
 
-bool TCDMNG_payout() {
-  if (tcd_using == TCD_1) {
-    if (TCD_is_available(&htcd_2) && htcd_2.state == TCD_IDLE) {
-      htcd_2.state = TCD_PAYOUTING;
-      tcd_using = TCD_2;
-    } else if (TCD_is_available(&htcd_1) && htcd_1.state == TCD_IDLE) {
-      htcd_1.state = TCD_PAYOUTING;
-      tcd_using = TCD_1;
-    } else {
-      return false;
-    }
-  } else if (tcd_using == TCD_2) {
-    if (TCD_is_available(&htcd_1) && htcd_1.state == TCD_IDLE) {
-      htcd_1.state = TCD_PAYOUTING;
-      tcd_using = TCD_1;
-    } else if (TCD_is_available(&htcd_2) && htcd_2.state == TCD_IDLE) {
-      htcd_2.state = TCD_PAYOUTING;
-      tcd_using = TCD_2;
-    } else {
-      return false;
-    }
-  }
-  return true;
-}
+bool TCDMNG_payout(TCD_id_t id) {
+	if(id == TCD_1){
+		if (TCD_is_available(&htcd_1) && htcd_1.state == TCD_IDLE) {
+		  htcd_1.state = TCD_PAYOUTING;
+		  tcd_using = TCD_1;
+		  return true;
+		}
+	}
 
-
-bool TCDMNG_payoutNbCard(TCD_id_t id, uint8_t nbCard){
-  
+	if(id == TCD_2){
+		if (TCD_is_available(&htcd_2) && htcd_2.state == TCD_IDLE) {
+		  htcd_2.state = TCD_PAYOUTING;
+		  tcd_using = TCD_2;
+		  return true;
+		}
+	}
+	return false;
 }
 
 bool TCDMNG_callback() {
@@ -221,8 +210,16 @@ bool TCDMNG_is_empty() {
   return (htcd_1.status.is_empty && htcd_2.status.is_empty);
 }
 
-bool TCDMNG_is_available_for_use() {
-  return (TCD_is_available(&htcd_1) || TCD_is_available(&htcd_2));
+bool TCDMNG_is_available_for_use(TCD_id_t *tcdId) {
+	if(TCD_is_available(&htcd_1)){
+		*tcdId = TCD_1;
+		return true;
+	}
+	if(TCD_is_available(&htcd_2)){
+		*tcdId = TCD_2;
+		return true;
+	}
+	return false;
 }
 
 static bool TCD_is_available(TCD_HandleType_t *htcd) {

@@ -20,7 +20,7 @@ static size_t fn_table_len = 0;
 TIM_HandleTypeDef htim3 = {
 	.Instance = TIM3,
 	.Init = {
-		.Prescaler = 63,
+		.Prescaler = 71,
 		.CounterMode = TIM_COUNTERMODE_UP,
 		.Period = 999,
 		.ClockDivision = TIM_CLOCKDIVISION_DIV1,
@@ -52,7 +52,6 @@ bool TIMER_init(){
 	{
 		Error_Handler();
 	}
-
 	return true;
 }
 
@@ -77,7 +76,7 @@ void TIMER_test(){
 	counter --;
 	if(counter == 0){
 		counter = 1000;
-		UART_send(UART_1, "T\r\n", 3);
+		utils_log_info("Test\r\n");
 	}
 }
 

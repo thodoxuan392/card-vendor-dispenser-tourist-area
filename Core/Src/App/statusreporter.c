@@ -154,14 +154,9 @@ static void STATUSREPORTER_buildEvtRfidDetected(PROTOCOL_t *proto, RFID_Id_t id,
 	for (uint8_t i = 0; i < rfid->id_len; ++i) {
 		proto->data[proto->data_len++] = rfid->id[i];
 	}
-	proto->data[proto->data_len++] = rfid->money >> 24;
-	proto->data[proto->data_len++] = rfid->money >> 16;
-	proto->data[proto->data_len++] = rfid->money >> 8;
-	proto->data[proto->data_len++] = rfid->money & 0xFF;
-	proto->data[proto->data_len++] = rfid->issueDate[2];
-	proto->data[proto->data_len++] = rfid->issueDate[1];
-	proto->data[proto->data_len++] = rfid->issueDate[0];
 	proto->data[proto->data_len++] = rfid->code;
+	proto->data[proto->data_len++] = rfid->type;
+	proto->data[proto->data_len++] = rfid->isUsed;
 }
 
 static void STATUSREPORTER_buildEvtBillAccepted(PROTOCOL_t *proto, uint32_t billValue){

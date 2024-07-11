@@ -68,51 +68,20 @@ This feature will be implemented when this product go to mass production.
     Android will send the request to dispense Card
 
     - Request:
-      | START_BYTE | PROTOCOL_ID | DATA_LEN | TCD_INDEX | NB_CARD| CHECK_SUM | STOP_BYTE |
+      | START_BYTE | PROTOCOL_ID | DATA_LEN | NB_CARD | CARD_TYPE| CHECK_SUM | STOP_BYTE |
       | ---------- | ----------- | -------- | -------- | -------- | -------- | ---------------- |
-      | 0x78 | 0x11 | 2 | ${tcdIndex} | ${nbCard} | ${computationByCrc16Arc} | 0x79 |
+      | 0x78 | 0x11 | 2 | ${nbCard} | ${cardType} | ${computationByCrc16Arc} | 0x79 |
     - Response:
       | START_BYTE | PROTOCOL_ID | DATA_LEN | RESULT_CODE | CHECK_SUM | STOP_BYTE |
       | ---------- | ----------- | -------- | ------------- | ------------------------ | --------- |
       | 0x78 | 0x11 | 1 | ${ResultCode} | ${computationByCrc16Arc} | 0x79 |
 
-    - tcdId: Index of TCD where Card will be dispensed
+    - nbCard: Number of Card to dispense
+    - cardType: Type of Card to dispense:
+        - CARD_TYPE_LEVEL_1: 0x01
+        - CARD_TYPE_LEVEL_2: 0x02
 
-5. **Update RFID (Protocol 0x12)**
-
-    Android will send the request to update data to RFID Card.
-
-    - Request:
-      | START_BYTE | PROTOCOL_ID | DATA_LEN | RFID_INDEX | RFID_LEN | RFID[RFID_LEN-1:0] | MONEY[3:0] | ISSUE_DATE[2:0] | CHECK_SUM | STOP_BYTE |
-      | ---------- | ----------- | -------- |-------- | -------- | ---------------- |-------- | -------- | ---------------- |---------------- |
-      | 0x78 | 0x12 | rfidLen + 9 | ${rfidIndex}| ${rfidLen} |${rfid} |${money} |${issueDate} | | ${computationByCrc16Arc} | 0x79 |
-    - Response:
-      | START_BYTE | PROTOCOL_ID | DATA_LEN | RESULT_CODE | RFID_INDEX | CHECK_SUM | STOP_BYTE |
-      | ---------- | ----------- | -------- | -------- | ------------- | ------------------------ | --------- |
-      | 0x78 | 0x12 | 2 | ${ResultCode} | ${rfidIndex} | ${computationByCrc16Arc} | 0x79 |
-
-    - rfidIndex: Index of RFID module
-    - rfidLen: Number of bytes of Rfid ID
-    - rfid: Id of RFID
-    - money: Amount of RFID
-    - issueDate: the Date when RFID was issued
-
-6. **Play Audio (Protocol 0x13)**
-
-    Android request Controller to play audio.
-
-    - Request:
-      | START_BYTE | PROTOCOL_ID | DATA_LEN | AUDIO_INDEX | CHECK_SUM | STOP_BYTE |
-      | ---------- | ----------- | -------- |-------- | -------- | ---------------- |
-      | 0x78 | 0x13 | 1 | ${audioIndex} | ${computationByCrc16Arc} | 0x79 |
-    - Response:
-      | START_BYTE | PROTOCOL_ID | DATA_LEN | RESULT_CODE | CHECK_SUM | STOP_BYTE |
-      | ---------- | ----------- | -------- | ------------- | ------------------------ | --------- |
-      | 0x78 | 0x13 | 1 | ${ResultCode} | ${computationByCrc16Arc} | 0x79 |
-
-    - audioIndex: Index of Audio in ControllerBox
-
-7. **Control IO (Protocol 0x14)**
+5. **Control IO (Protocol 0x14)**
 
     Android request Controller to play audio.
 

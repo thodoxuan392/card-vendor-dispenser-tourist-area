@@ -54,7 +54,7 @@ void CONFIG_printf() {
   utils_log_info("Version: %s\r\n", config.version);
   utils_log_info("DeviceId: %s\r\n", config.device_id);
   utils_log_info("Password: %s\r\n", config.password);
-  utils_log_info("EnableStsPolling: %s\r\n", config.enableStsPolling);
+  utils_log_info("EnableStsPolling: %d\r\n", config.enableStsPolling);
   utils_log_info("CardPrice: %d\r\n", config.card_price);
   utils_log_info("Amount: %d\r\n", config.amount);
   utils_log_info("total_amount: %d\r\n", config.total_amount);

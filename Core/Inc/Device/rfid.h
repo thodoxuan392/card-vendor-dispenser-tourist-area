@@ -22,14 +22,15 @@ typedef enum {
   RFID_ERROR_CANNOT_WRITE = 0x74,
 } RFID_Error_t;
 
+
 typedef enum { RFID_ID_1 = 0, RFID_ID_2, RFID_ID_3, RFID_ID_MAX } RFID_Id_t;
 
 typedef struct {
   uint8_t id[RFID_ID_MAX_LENGTH];
   uint8_t id_len;
   uint8_t code;
-  uint32_t money;
-  uint8_t issueDate[3]; // [0]: Year, [1] Month, [2] Date
+  uint8_t type;
+  uint8_t isUsed;
 } RFID_t;
 
 typedef void (*RFID_UpdateResultCallback)(RFID_Id_t id, RFID_Error_t error);

@@ -66,7 +66,6 @@ static COMMANDHANDLER_HandleFunc COMMANDHANDLER_handleFuncTable[] = {
     [PROTOCOL_ID_CMD_REQUEST_VERSION] = COMMANDHANDLER_handleRequestVersion,
     [PROTOCOL_ID_CMD_CONFIG] = COMMANDHANDLER_handleConfig,
     [PROTOCOL_ID_CMD_DISPENSE_CARD] = COMMANDHANDLER_handleDispenseCard,
-    [PROTOCOL_ID_CMD_UPDATE_RFID] = COMMANDHANDLER_handleUpdateRFID,
     [PROTOCOL_ID_CMD_PLAY_AUDIO] = COMMANDHANDLER_handlePlayAudio,
     [PROTOCOL_ID_CMD_CONTROL_IO] = COMMANDHANDLER_handleControlIO,
 };
@@ -156,52 +155,15 @@ static void COMMANDHANDLER_handleDispenseCard(PROTOCOL_t *proto) {
         PROTOCOL_RESULT_COMM_PROTOCOL_DATA_LEN_INVALID, 0x00);
     return;
   }
-  uint8_t tcdIndex = proto->data[0];
-  uint8_t nbCard = proto->data[1];
+  uint8_t nbCard = proto->data[0];
+  uint8_t type = proto->data[1];
 
-  if (!TCDMNG_payoutNbCard(tcdIndex, nbCard)) {
+  if (!STATEMACHINE_requestDispense(nbCard, type)) {
     utils_log_error("HandleDispenseCard failed: Cannot dispense card\r\n",
                     proto->data_len);
     COMMANDHANDLER_sendDispenseCardResponse(PROTOCOL_RESULT_ERROR, 0x00);
     return;
   }
-}
-
-static void COMMANDHANDLER_handleUpdateRFID(PROTOCOL_t *proto) {
-  uint8_t rfidIndex = proto->data[0];
-  uint8_t rfidLen = proto->data[1];
-
-  if (proto->data_len != rfidLen + 9) {
-    utils_log_error(
-        "HandleDispenseCard failed: Invalid data_len %d, expected %d\r\n",
-        proto->data_len, rfidLen + 9);
-    COMMANDHANDLER_sendUpdateRFIDResponse(PROTOCOL_RESULT_COMM_PROTOCOL_DATA_LEN_INVALID, rfidLen);
-    return;
-  }
-
-  RFID_t rfid;
-  rfid.id_len = rfidLen;
-  for (size_t i = 0; i < rfidLen; i++) {
-    rfid.id[i] = proto->data[2 + i];
-  }
-  rfid.money = ((uint32_t)proto->data[rfidLen + 3] << 24) |
-               ((uint32_t)proto->data[rfidLen + 4] << 16) |
-               ((uint32_t)proto->data[rfidLen + 5] << 8) |
-               ((uint32_t)proto->data[rfidLen + 6]);
-
-  rfid.issueDate[2] = proto->data[rfidLen + 7];
-  rfid.issueDate[1] = proto->data[rfidLen + 6];
-  rfid.issueDate[0] = proto->data[rfidLen + 5];
-
-  RFID_Error_t err = RFID_set(rfidIndex, &rfid);
-  if (err != RFID_SUCCESS) {
-    utils_log_error(
-        "HandleUpdateRFID failed: Cannot update RFID with err %d\r\n", err);
-    PROTOCOL_ResultCode_t resultCode = COMMANDHANDLER_rfidErrorToResultCode(err);
-    COMMANDHANDLER_sendUpdateRFIDResponse(resultCode, rfidIndex);
-    return;
-  }
-  COMMANDHANDLER_sendUpdateRFIDResponse(PROTOCOL_RESULT_SUCCESS, rfidIndex);
 }
 
 static void COMMANDHANDLER_handlePlayAudio(PROTOCOL_t *proto) {

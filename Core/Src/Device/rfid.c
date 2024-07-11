@@ -157,13 +157,8 @@ RFID_Error_t RFID_set(RFID_Id_t id, RFID_t* rfid)
 		RFID_handleTable[id].updateMessage.data[RFID_handleTable[id].updateMessage.dataLen++] = rfid->id[i];
 	}
 	RFID_handleTable[id].updateMessage.data[RFID_handleTable[id].updateMessage.dataLen++] = rfid->code;
-	RFID_handleTable[id].updateMessage.data[RFID_handleTable[id].updateMessage.dataLen++] = rfid->money >> 24;
-	RFID_handleTable[id].updateMessage.data[RFID_handleTable[id].updateMessage.dataLen++] = rfid->money >> 16;
-	RFID_handleTable[id].updateMessage.data[RFID_handleTable[id].updateMessage.dataLen++] = rfid->money >> 8;
-	RFID_handleTable[id].updateMessage.data[RFID_handleTable[id].updateMessage.dataLen++] = rfid->money & 0xFF;
-	RFID_handleTable[id].updateMessage.data[RFID_handleTable[id].updateMessage.dataLen++] = rfid->issueDate[0];
-	RFID_handleTable[id].updateMessage.data[RFID_handleTable[id].updateMessage.dataLen++] = rfid->issueDate[1];
-	RFID_handleTable[id].updateMessage.data[RFID_handleTable[id].updateMessage.dataLen++] = rfid->issueDate[2];
+	RFID_handleTable[id].updateMessage.data[RFID_handleTable[id].updateMessage.dataLen++] = rfid->type;
+	RFID_handleTable[id].updateMessage.data[RFID_handleTable[id].updateMessage.dataLen++] = rfid->isUsed;
 	RFID_handleTable[id].updatePending = true;
 	return true;
 }
@@ -183,8 +178,8 @@ void RFID_test(void)
 	RFID_t rfid = {
 		.id = {163, 52, 18, 8},
 		.id_len = 4,
-		.money = 200000,
-		.issueDate = {24, 1, 7},
+		.type = 0x00,
+		.isUsed = 0
 	};
 	while(1)
 	{
@@ -293,17 +288,8 @@ static bool RFID_handleResponseStatus(RS485_Message* message)
 			RFID_handleTable[srcNode].rfid.id[var] = message->data[1 + var];
 		}
 		RFID_handleTable[srcNode].rfid.code = message->data[1 + RFID_handleTable[srcNode].rfid.id_len];
-		RFID_handleTable[srcNode].rfid.money =
-			((uint32_t)message->data[2 + RFID_handleTable[srcNode].rfid.id_len] << 24) |
-			((uint32_t)message->data[3 + RFID_handleTable[srcNode].rfid.id_len] << 16) |
-			((uint32_t)message->data[4 + RFID_handleTable[srcNode].rfid.id_len] << 8) |
-			((uint32_t)message->data[5 + RFID_handleTable[srcNode].rfid.id_len]);
-		RFID_handleTable[srcNode].rfid.issueDate[0] =
-			message->data[6 + RFID_handleTable[srcNode].rfid.id_len];
-		RFID_handleTable[srcNode].rfid.issueDate[1] =
-			message->data[7 + RFID_handleTable[srcNode].rfid.id_len];
-		RFID_handleTable[srcNode].rfid.issueDate[2] =
-			message->data[8 + RFID_handleTable[srcNode].rfid.id_len];
+		RFID_handleTable[srcNode].rfid.type = message->data[2 + RFID_handleTable[srcNode].rfid.id_len];
+		RFID_handleTable[srcNode].rfid.isUsed = message->data[3 + RFID_handleTable[srcNode].rfid.id_len];
 		if(!RFID_handleTable[srcNode].isPlaced){
 			RFID_handleTable[srcNode].isDetected = true;
 		}

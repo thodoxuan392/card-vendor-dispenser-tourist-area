@@ -38,12 +38,12 @@ bool TCDMNG_is_in_idle();
 bool TCDMNG_is_in_processing();
 bool TCDMNG_is_in_error();
 void TCDMNG_reset();
-bool TCDMNG_payout();
-bool TCDMNG_payoutNbCard(TCD_id_t id, uint8_t nbCard);
+bool TCDMNG_payout(TCD_id_t id);
+bool TCDMNG_payoutNbCard(uint8_t nbCard);
 bool TCDMNG_callback();
 bool TCDMNG_is_error();
 bool TCDMNG_is_lower();
 bool TCDMNG_is_empty();
-bool TCDMNG_is_available_for_use();
+bool TCDMNG_is_available_for_use(TCD_id_t *tcdId);
 
 #endif /* INC_DEVICEMANAGER_TCDMANAGER_H_ */
