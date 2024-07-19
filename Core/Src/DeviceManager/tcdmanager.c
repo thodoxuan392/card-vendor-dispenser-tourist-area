@@ -12,7 +12,7 @@
 #include "main.h"
 
 #define INIT_DURATION 3000                   // 3s
-#define PAYOUT_DURATION 500                  // 500ms
+#define PAYOUT_DURATION 1000                  // 500ms
 #define CALLBACK_DURATION 300                // 300ms
 #define CARD_TO_PLACE_CARD_TIMEOUT 10000     // 3 seconds
 #define TAKING_CARD_TIMEOUT 45000            // 45 seconds
@@ -150,7 +150,7 @@ void TCDMNG_reset() {
 
 bool TCDMNG_payout(TCD_id_t id) {
 	if(id == TCD_1){
-		if (TCD_is_available(&htcd_1) && htcd_1.state == TCD_IDLE) {
+		if (TCD_is_available(&htcd_1) && ((htcd_1.state == TCD_IDLE) || (htcd_1.state == TCD_WAIT_FOR_UPDATING_STATUS)) ) {
 		  htcd_1.state = TCD_PAYOUTING;
 		  tcd_using = TCD_1;
 		  return true;
@@ -158,7 +158,7 @@ bool TCDMNG_payout(TCD_id_t id) {
 	}
 
 	if(id == TCD_2){
-		if (TCD_is_available(&htcd_2) && htcd_2.state == TCD_IDLE) {
+		if (TCD_is_available(&htcd_2) && ((htcd_2.state == TCD_IDLE) || (htcd_2.state == TCD_WAIT_FOR_UPDATING_STATUS)) ) {
 		  htcd_2.state = TCD_PAYOUTING;
 		  tcd_using = TCD_2;
 		  return true;

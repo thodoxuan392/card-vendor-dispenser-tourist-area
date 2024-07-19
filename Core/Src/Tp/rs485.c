@@ -107,7 +107,6 @@ static bool RS485_parse(uint8_t* data, size_t data_len, RS485_Message* message, 
 		}
 	}
 	if(!foundStartByte){
-		*cleanUp = true;
 		return false;
 	}
 	RS485_NetworkId networkId = data[startByteIdx + 1];
@@ -117,18 +116,19 @@ static bool RS485_parse(uint8_t* data, size_t data_len, RS485_Message* message, 
 	RS485_ResultCode resultCode = data[startByteIdx + 5];
 
 	uint8_t dataL = data[startByteIdx + 6];
-	uint16_t expectedChecksum = RS485_calCheckSum(&data[startByteIdx + 7], dataL);
-	uint16_t checksum = ((uint16_t)data[startByteIdx + 7 + dataL] << 8) | data[startByteIdx + 8 + dataL];
-	if(expectedChecksum != checksum)
-	{
-		return false;
-	}
 	if(data[startByteIdx + 9 + dataL] != RS485_MESSAGE_STOP_BYTE)
 	{
 		return false;
 	}
 	if(data_len < startByteIdx + 10 + dataL)
 	{
+		return false;
+	}
+	uint16_t expectedChecksum = RS485_calCheckSum(&data[startByteIdx + 7], dataL);
+	uint16_t checksum = ((uint16_t)data[startByteIdx + 7 + dataL] << 8) | data[startByteIdx + 8 + dataL];
+	if(expectedChecksum != checksum)
+	{
+		* cleanUp = true;
 		return false;
 	}
 	message->networkId = networkId;

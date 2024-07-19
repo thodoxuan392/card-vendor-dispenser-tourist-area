@@ -46,13 +46,6 @@ typedef struct {
   char version[VERSION_MAX_LEN];
   char device_id[DEVICE_ID_MAX_LEN];
   char password[SETTING_MODE_PASSWORD_MAX_LEN];
-  uint8_t enableStsPolling;
-  uint32_t card_price;
-  uint32_t amount;
-  uint32_t total_amount;
-  uint32_t total_card;
-  uint32_t total_card_by_day;
-  uint32_t total_card_by_month;
 } CONFIG_t;
 
 bool CONFIG_init();

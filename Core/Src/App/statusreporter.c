@@ -173,7 +173,6 @@ static void STATUSREPORTER_buildEvtCard(PROTOCOL_t *proto, TCD_id_t id, uint8_t 
 	proto->data_len = 0;
 	proto->data[proto->data_len++] = cardDirection;
 }
-
 static void STATUSREPORTER_timeout(){
 	STATUSREPORTER_timeout_flag = true;
 }

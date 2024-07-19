@@ -20,8 +20,8 @@
 #define RFID_485_MESSAGE_ID_REQUEST_UPDATE 0x03
 #define RFID_485_MESSAGE_ID_RESPONSE_UPDATE 0x04
 
-#define RFID_485_MESSAGE_ID_REQUEST_STATUS_TIMEOUT	1000	// 500ms
-#define RFID_485_MESSAGE_ID_REQUEST_UPDATE_TIMEOUT	1000	// 500ms
+#define RFID_485_MESSAGE_ID_REQUEST_STATUS_TIMEOUT	2000	// 500ms
+#define RFID_485_MESSAGE_ID_REQUEST_UPDATE_TIMEOUT	2000	// 500ms
 
 #define RFID_485_STATUS_POLLING_INTERVAL 	100	// 500ms
 
@@ -43,6 +43,7 @@ typedef struct
 	RS485_Message updateMessage;
 	bool updatePending;
 	bool updateResponseIndicator;
+	bool updateResponseResult;
 
 	// For RFID Status
 	uint32_t statusPollingCnt;
@@ -191,6 +192,7 @@ void RFID_test(void)
 static void RFID_runIdle(){
 	RFID_Id_t id = RFID_getCurrHandleRfid();
 	if(RFID_handleTable[id].updatePending){
+		RFID_handleTable[id].updatePending = false;
 		RS485_send(&RFID_handleTable[id].updateMessage);
 		RFID_handleTable[id].timeoutFlag = false;
 		RFID_handleTable[id].timeoutCnt = RFID_485_MESSAGE_ID_REQUEST_UPDATE_TIMEOUT;
@@ -306,8 +308,12 @@ static bool RFID_handleResponseStatus(RS485_Message* message)
 static bool RFID_handleResponseUpdate(RS485_Message* message)
 {
 	uint8_t srcNode = message->srcNode;
-
 	RFID_Error_t error = message->data[0];
+
+	RFID_handleTable[srcNode].updateResponseIndicator = true;
+	RFID_handleTable[srcNode].updateResponseResult = (error == RFID_SUCCESS);
+	if(RFID_updateResultCallback)
+		RFID_updateResultCallback(srcNode, RFID_handleTable[srcNode].updateResponseResult);
 
 	if(RFID_updateResultCallback){
 		RFID_updateResultCallback(srcNode , error);

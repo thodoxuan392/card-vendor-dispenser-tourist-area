@@ -11,9 +11,6 @@
 #include "stdint.h"
 #include "stdbool.h"
 
-#define STATEMACHINE_DISPENSE_RESULT_SUCCESS	0x00
-#define STATEMACHINE_DISPENSE_RESULT_FAILED		0x01
-
 typedef void (*STATEMACHINE_DispenseResultCallback)(uint8_t result);
 
 void STATEMACHINE_init(void);

@@ -116,7 +116,6 @@ static bool PROTOCOL_parse(uint8_t* data, size_t data_len, PROTOCOL_t* proto, bo
 		}
 	}
 	if(!foundStartByte){
-		*cleanUp = true;
 		return false;
 	}
 	uint8_t dataL = data[2];

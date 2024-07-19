@@ -43,7 +43,6 @@
 #include "Hal/flash.h"
 #include "Hal/gpio.h"
 #include "Hal/i2c.h"
-#include "Hal/spi.h"
 #include "Hal/timer.h"
 #include "Hal/uart.h"
 #include "Hal/watchdog.h"
@@ -91,26 +90,30 @@ int main(void)
   // Hal init
   CLOCK_init();
   GPIO_init();
+  I2C_init();
   TIMER_init();
   UART_init();
-  I2C_init();
 //  WATCHDOG_init();
 
 
   // Device Init
-  GENERICIO_init();
   BILLACCEPTOR_init();
   EEPROM_init();
   TCD_init();
   RTC_init();
+  RFID_init();
 
   // Init
    CONFIG_init();
 
+   RS485_init();
+
+
   // Device Manager Init
   BILLACCEPTORMNG_init();
   TCDMNG_init();
-//  // App Init
+  // App Init
+  STATEMACHINE_init();
   PROTOCOL_init();
   COMMANDHANDLER_init();
   SCHEDULERPORT_init();
@@ -139,6 +142,8 @@ int main(void)
 	SCH_Dispatch_Tasks();
 	BILLACCEPTORMNG_run();
 	TCDMNG_run();
+	RFID_run();
+	RS485_run();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

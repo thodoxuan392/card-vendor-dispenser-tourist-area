@@ -40,8 +40,6 @@ bool BILLACCEPTORMNG_is_error();
 bool BILLACCEPTORMNG_is_accepted();
 bool BILLACCEPTORMNG_clear_accepted();
 uint32_t BILLACCEPTOR_get_last_bill_accepted();
-uint32_t BILLACCEPTORMNG_get_amount();
-void BILLACCEPTORMNG_set_amount(uint32_t _amount);
 void BILLACCEPTORMNG_enable();
 void BILLACCEPTORMNG_disable();
 bool BILLACCEPTORMNG_is_enabled();

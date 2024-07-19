@@ -43,7 +43,6 @@ static bool is_accepted = false;
 static uint32_t last_bill_accepted = 0;
 static uint8_t bill_routing;
 static uint8_t bill_type_accepted;
-static uint32_t amount = 0;
 static BILLACCEPTOR_BillType_t billtype_default = {
 	.bill_enable = 0b0000000111111110,
 	.bill_escrow_enable = 0b0000000111111110
@@ -100,7 +99,6 @@ static void BILLACCEPTOR_save_amount_to_eeprom(uint32_t amount, uint32_t _total_
 
 bool BILLACCEPTORMNG_init(){
 	CONFIG_t * config = CONFIG_get();
-	amount = config->amount;
 	BILLACCEPTOR_reset();
 	BILLACCEPTOR_Poll_t poll;
 	BILLACCEPTOR_poll(&poll);
@@ -168,15 +166,6 @@ uint32_t BILLACCEPTOR_get_last_bill_accepted(){
 	return last_bill_accepted;
 }
 
-uint32_t BILLACCEPTORMNG_get_amount(){
-	return amount;
-}
-
-void BILLACCEPTORMNG_set_amount(uint32_t _amount){
-	CONFIG_t *config = CONFIG_get();
-	amount = _amount;
-	BILLACCEPTOR_save_amount_to_eeprom(amount, config->total_amount);
-}
 
 void BILLACCEPTORMNG_test(){
 
@@ -215,15 +204,8 @@ static void BILLACCEPTORMNG_have_bill(){
 		case BILL_STACKED:
 			is_accepted = true;
 			last_bill_accepted = bill_mapping[bill_type_accepted];
-			// Calculate Bill Value and add it to amount
-			amount += bill_mapping[bill_type_accepted];
-			// Update total amount
-			config->total_amount += bill_mapping[bill_type_accepted];
-			// Save it to EEPROM
-			BILLACCEPTOR_save_amount_to_eeprom(amount, config->total_amount);
 			// LCD display Bill detected and Bill value
 			utils_log_info("Bill %d accepted\r\n", bill_mapping[bill_type_accepted]);
-			utils_log_info("Amount %d\r\n", amount);
 			break;
 		case BILL_ESCROW_POSITION:
 			utils_log_info("Billacceptor escrow\r\n");
@@ -255,12 +237,6 @@ static void BILLACCEPTORMNG_timeout(){
 	timeout = true;
 }
 
-static void BILLACCEPTOR_save_amount_to_eeprom(uint32_t _amount, uint32_t _total_amount){
-	CONFIG_t * config = CONFIG_get();
-	config->amount = _amount;
-	config->total_amount = _total_amount;
-	CONFIG_set(config);
-}
 
 
 static void BILLACCEPTORMNG_status_printf(uint8_t bill_status){

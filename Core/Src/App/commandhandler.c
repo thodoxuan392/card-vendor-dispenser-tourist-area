@@ -10,6 +10,7 @@
 #include "main.h"
 
 #include "App/protocol.h"
+#include "App/statemachine.h"
 
 #include <DeviceManager/tcdmanager.h>
 
@@ -41,8 +42,7 @@ static void COMMANDHANDLER_sendRequestVersionResponse(PROTOCOL_ResultCode_t resu
                                           uint8_t *firmwareVersion,
                                           uint8_t *boardVersion);
 static void COMMANDHANDLER_sendConfigResponse(PROTOCOL_ResultCode_t resultCode);
-static void COMMANDHANDLER_sendDispenseCardResponse(PROTOCOL_ResultCode_t resultCode,
-                                        	uint8_t direction);
+static void COMMANDHANDLER_sendDispenseCardResponse(PROTOCOL_ResultCode_t resultCode);
 static void COMMANDHANDLER_sendUpdateRFIDResponse(PROTOCOL_ResultCode_t resultCode, RFID_Id_t id);
 static void COMMANDHANDLER_sendPlayAudioResponse(PROTOCOL_ResultCode_t resultCode);
 static void COMMANDHANDLER_sendControlIOResponse(PROTOCOL_ResultCode_t resultCode);
@@ -51,9 +51,7 @@ static void COMMANDHANDLER_sendControlIOResponse(PROTOCOL_ResultCode_t resultCod
  * @defgroup Callback Group Function
  *
  */
-static void COMMANDHANDLER_takeCardCb(TCD_id_t tcdIndex);
-static void COMMANDHANDLER_callbackCardCb(TCD_id_t tcdIndex);
-static void COMMANDHANDLER_updateRFIDResultCb(RFID_Id_t id, RFID_Error_t error);
+static void COMMANDHANDLER_dispenseCardResultCallback(uint8_t result);
 
 /**
  * @defgroup Miscellaneous Function Group
@@ -72,9 +70,7 @@ static COMMANDHANDLER_HandleFunc COMMANDHANDLER_handleFuncTable[] = {
 static PROTOCOL_t protocolMessage;
 
 bool COMMANDHANDLER_init() {
-	TCDMNG_set_take_card_cb(COMMANDHANDLER_takeCardCb);
-	TCDMNG_set_callback_card_cb(COMMANDHANDLER_callbackCardCb);
-	RFID_setUpdateResultCallback(COMMANDHANDLER_updateRFIDResultCb);
+	STATEMACHINE_setDispenseResultCallback(COMMANDHANDLER_dispenseCardResultCallback);
 }
 
 bool COMMANDHANDLER_run() {
@@ -139,7 +135,6 @@ static void COMMANDHANDLER_handleConfig(PROTOCOL_t *proto) {
   }
 
   CONFIG_t *config = CONFIG_get();
-  config->enableStsPolling = proto->data[0];
 
   CONFIG_set(config);
 
@@ -147,12 +142,12 @@ static void COMMANDHANDLER_handleConfig(PROTOCOL_t *proto) {
 }
 
 static void COMMANDHANDLER_handleDispenseCard(PROTOCOL_t *proto) {
-  if (proto->data_len != 0) {
+  if (proto->data_len != 2) {
     utils_log_error(
-        "HandleDispenseCard failed: Invalid data_len %d, expected 0\r\n",
+        "HandleDispenseCard failed: Invalid data_len %d, expected 2\r\n",
         proto->data_len);
     COMMANDHANDLER_sendDispenseCardResponse(
-        PROTOCOL_RESULT_COMM_PROTOCOL_DATA_LEN_INVALID, 0x00);
+        PROTOCOL_RESULT_COMM_PROTOCOL_DATA_LEN_INVALID);
     return;
   }
   uint8_t nbCard = proto->data[0];
@@ -161,7 +156,7 @@ static void COMMANDHANDLER_handleDispenseCard(PROTOCOL_t *proto) {
   if (!STATEMACHINE_requestDispense(nbCard, type)) {
     utils_log_error("HandleDispenseCard failed: Cannot dispense card\r\n",
                     proto->data_len);
-    COMMANDHANDLER_sendDispenseCardResponse(PROTOCOL_RESULT_ERROR, 0x00);
+    COMMANDHANDLER_sendDispenseCardResponse(PROTOCOL_RESULT_ERROR);
     return;
   }
 }
@@ -232,8 +227,7 @@ static void COMMANDHANDLER_sendConfigResponse(PROTOCOL_ResultCode_t resultCode) 
 
   PROTOCOL_send(&protocol);
 }
-static void COMMANDHANDLER_sendDispenseCardResponse(PROTOCOL_ResultCode_t resultCode,
-                                        uint8_t direction) {
+static void COMMANDHANDLER_sendDispenseCardResponse(PROTOCOL_ResultCode_t resultCode) {
   PROTOCOL_t protocol;
   protocol.protocol_id = PROTOCOL_ID_CMD_DISPENSE_CARD;
   protocol.data_len = 1;
@@ -268,18 +262,10 @@ static void COMMANDHANDLER_sendControlIOResponse(PROTOCOL_ResultCode_t resultCod
   PROTOCOL_send(&protocol);
 }
 
-static void COMMANDHANDLER_takeCardCb(TCD_id_t tcdIndex) {
-  COMMANDHANDLER_sendDispenseCardResponse(PROTOCOL_RESULT_SUCCESS, 0x00);
+static void COMMANDHANDLER_dispenseCardResultCallback(uint8_t result){
+	COMMANDHANDLER_sendDispenseCardResponse(result);
 }
 
-static void COMMANDHANDLER_callbackCardCb(TCD_id_t tcdIndex) {
-  COMMANDHANDLER_sendDispenseCardResponse(PROTOCOL_RESULT_SUCCESS, 0x01);
-}
-
-static void COMMANDHANDLER_updateRFIDResultCb(RFID_Id_t id, RFID_Error_t error){
-	PROTOCOL_ResultCode_t resultCode = COMMANDHANDLER_rfidErrorToResultCode(error);
-	COMMANDHANDLER_sendUpdateRFIDResponse(resultCode , id);
-}
 
 static bool COMMANDHANDLER_isCommandValid(PROTOCOL_t *proto) {
 	if(proto->protocol_id >= PROTOCOL_ID_MAX){
