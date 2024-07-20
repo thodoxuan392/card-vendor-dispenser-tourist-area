@@ -29,7 +29,6 @@ static void COMMANDHANDLER_handleReset(PROTOCOL_t *);
 static void COMMANDHANDLER_handleRequestVersion(PROTOCOL_t *);
 static void COMMANDHANDLER_handleConfig(PROTOCOL_t *);
 static void COMMANDHANDLER_handleDispenseCard(PROTOCOL_t *);
-static void COMMANDHANDLER_handleUpdateRFID(PROTOCOL_t *);
 static void COMMANDHANDLER_handlePlayAudio(PROTOCOL_t *);
 static void COMMANDHANDLER_handleControlIO(PROTOCOL_t *);
 
@@ -42,16 +41,14 @@ static void COMMANDHANDLER_sendRequestVersionResponse(PROTOCOL_ResultCode_t resu
                                           uint8_t *firmwareVersion,
                                           uint8_t *boardVersion);
 static void COMMANDHANDLER_sendConfigResponse(PROTOCOL_ResultCode_t resultCode);
-static void COMMANDHANDLER_sendDispenseCardResponse(PROTOCOL_ResultCode_t resultCode);
-static void COMMANDHANDLER_sendUpdateRFIDResponse(PROTOCOL_ResultCode_t resultCode, RFID_Id_t id);
-static void COMMANDHANDLER_sendPlayAudioResponse(PROTOCOL_ResultCode_t resultCode);
+static void COMMANDHANDLER_sendDispenseCardResponse(PROTOCOL_ResultCode_t resultCode, uint32_t remainCard);
 static void COMMANDHANDLER_sendControlIOResponse(PROTOCOL_ResultCode_t resultCode);
 
 /**
  * @defgroup Callback Group Function
  *
  */
-static void COMMANDHANDLER_dispenseCardResultCallback(uint8_t result);
+static void COMMANDHANDLER_dispenseCardResultCallback(uint8_t result, uint32_t remainCard);
 
 /**
  * @defgroup Miscellaneous Function Group
@@ -64,7 +61,6 @@ static COMMANDHANDLER_HandleFunc COMMANDHANDLER_handleFuncTable[] = {
     [PROTOCOL_ID_CMD_REQUEST_VERSION] = COMMANDHANDLER_handleRequestVersion,
     [PROTOCOL_ID_CMD_CONFIG] = COMMANDHANDLER_handleConfig,
     [PROTOCOL_ID_CMD_DISPENSE_CARD] = COMMANDHANDLER_handleDispenseCard,
-    [PROTOCOL_ID_CMD_PLAY_AUDIO] = COMMANDHANDLER_handlePlayAudio,
     [PROTOCOL_ID_CMD_CONTROL_IO] = COMMANDHANDLER_handleControlIO,
 };
 static PROTOCOL_t protocolMessage;
@@ -147,7 +143,7 @@ static void COMMANDHANDLER_handleDispenseCard(PROTOCOL_t *proto) {
         "HandleDispenseCard failed: Invalid data_len %d, expected 2\r\n",
         proto->data_len);
     COMMANDHANDLER_sendDispenseCardResponse(
-        PROTOCOL_RESULT_COMM_PROTOCOL_DATA_LEN_INVALID);
+        PROTOCOL_RESULT_COMM_PROTOCOL_DATA_LEN_INVALID, 0);
     return;
   }
   uint8_t nbCard = proto->data[0];
@@ -156,22 +152,9 @@ static void COMMANDHANDLER_handleDispenseCard(PROTOCOL_t *proto) {
   if (!STATEMACHINE_requestDispense(nbCard, type)) {
     utils_log_error("HandleDispenseCard failed: Cannot dispense card\r\n",
                     proto->data_len);
-    COMMANDHANDLER_sendDispenseCardResponse(PROTOCOL_RESULT_ERROR);
+    COMMANDHANDLER_sendDispenseCardResponse(PROTOCOL_RESULT_ERROR, 0);
     return;
   }
-}
-
-static void COMMANDHANDLER_handlePlayAudio(PROTOCOL_t *proto) {
-  if (proto->data_len != 1) {
-    utils_log_error(
-        "HandlePlayAudio failed: Invalid data_len %d, expected 0\r\n",
-        proto->data_len);
-    COMMANDHANDLER_sendPlayAudioResponse(
-        PROTOCOL_RESULT_COMM_PROTOCOL_DATA_LEN_INVALID);
-    return;
-  }
-  // Nothing to do
-  COMMANDHANDLER_sendPlayAudioResponse(PROTOCOL_RESULT_SUCCESS);
 }
 
 static void COMMANDHANDLER_handleControlIO(PROTOCOL_t *proto) {
@@ -227,28 +210,12 @@ static void COMMANDHANDLER_sendConfigResponse(PROTOCOL_ResultCode_t resultCode) 
 
   PROTOCOL_send(&protocol);
 }
-static void COMMANDHANDLER_sendDispenseCardResponse(PROTOCOL_ResultCode_t resultCode) {
+static void COMMANDHANDLER_sendDispenseCardResponse(PROTOCOL_ResultCode_t resultCode, uint32_t remainCard) {
   PROTOCOL_t protocol;
   protocol.protocol_id = PROTOCOL_ID_CMD_DISPENSE_CARD;
-  protocol.data_len = 1;
-  protocol.data[0] = resultCode;
-
-  PROTOCOL_send(&protocol);
-}
-static void COMMANDHANDLER_sendUpdateRFIDResponse(PROTOCOL_ResultCode_t resultCode, RFID_Id_t id) {
-  PROTOCOL_t protocol;
-  protocol.protocol_id = PROTOCOL_ID_CMD_UPDATE_RFID;
   protocol.data_len = 2;
   protocol.data[0] = resultCode;
-  protocol.data[1] = id;
-
-  PROTOCOL_send(&protocol);
-}
-static void COMMANDHANDLER_sendPlayAudioResponse(PROTOCOL_ResultCode_t resultCode) {
-  PROTOCOL_t protocol;
-  protocol.protocol_id = PROTOCOL_ID_CMD_PLAY_AUDIO;
-  protocol.data_len = 1;
-  protocol.data[0] = resultCode;
+  protocol.data[1] = remainCard;
 
   PROTOCOL_send(&protocol);
 }
@@ -262,8 +229,8 @@ static void COMMANDHANDLER_sendControlIOResponse(PROTOCOL_ResultCode_t resultCod
   PROTOCOL_send(&protocol);
 }
 
-static void COMMANDHANDLER_dispenseCardResultCallback(uint8_t result){
-	COMMANDHANDLER_sendDispenseCardResponse(result);
+static void COMMANDHANDLER_dispenseCardResultCallback(uint8_t result, uint32_t remainCard){
+	COMMANDHANDLER_sendDispenseCardResponse(result, remainCard);
 }
 
 
@@ -277,26 +244,3 @@ static bool COMMANDHANDLER_isCommandValid(PROTOCOL_t *proto) {
 	return true;
 }
 
-static PROTOCOL_ResultCode_t COMMANDHANDLER_rfidErrorToResultCode(RFID_Error_t err) {
-  PROTOCOL_ResultCode_t result;
-  switch (err) {
-  case RFID_ERROR_AUTHEN_FAILED:
-    result = PROTOCOL_RESULT_CMD_RFID_AUTHEN_FAILED;
-    break;
-  case RFID_ERROR_CANNOT_WRITE:
-    result = PROTOCOL_RESULT_CMD_RFID_CANNOT_WRITE;
-    break;
-  case RFID_ERROR_ID_NOT_MATCHED:
-    result = PROTOCOL_RESULT_CMD_RFID_NOT_MATCHED;
-    break;
-  case RFID_ERROR_INVALID_FORMAT:
-    result = PROTOCOL_RESULT_CMD_RFID_INVALID_FORMAT;
-    break;
-  case RFID_ERROR_NOT_AVAILABLE:
-    result = PROTOCOL_RESULT_CMD_RFID_NOT_AVAILABLE;
-    break;
-  default:
-    break;
-  }
-  return result;
-}

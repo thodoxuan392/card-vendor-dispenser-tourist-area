@@ -311,13 +311,9 @@ static bool RFID_handleResponseUpdate(RS485_Message* message)
 	RFID_Error_t error = message->data[0];
 
 	RFID_handleTable[srcNode].updateResponseIndicator = true;
-	RFID_handleTable[srcNode].updateResponseResult = (error == RFID_SUCCESS);
+	RFID_handleTable[srcNode].updateResponseResult = error;
 	if(RFID_updateResultCallback)
 		RFID_updateResultCallback(srcNode, RFID_handleTable[srcNode].updateResponseResult);
-
-	if(RFID_updateResultCallback){
-		RFID_updateResultCallback(srcNode , error);
-	}
 }
 
 static void RFID_interrupt1ms(void){

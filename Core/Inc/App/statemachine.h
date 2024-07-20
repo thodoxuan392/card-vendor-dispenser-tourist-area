@@ -11,7 +11,7 @@
 #include "stdint.h"
 #include "stdbool.h"
 
-typedef void (*STATEMACHINE_DispenseResultCallback)(uint8_t result);
+typedef void (*STATEMACHINE_DispenseResultCallback)(uint8_t result, uint32_t remainCard);
 
 void STATEMACHINE_init(void);
 void STATEMACHINE_run(void);
