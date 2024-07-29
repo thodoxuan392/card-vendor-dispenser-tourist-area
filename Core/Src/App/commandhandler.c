@@ -6,8 +6,9 @@
  */
 #include "App/commandhandler.h"
 
-#include "config.h"
 #include "main.h"
+#include "config.h"
+#include "string.h"
 
 #include "App/protocol.h"
 #include "App/statemachine.h"
@@ -38,8 +39,9 @@ static void COMMANDHANDLER_handleControlIO(PROTOCOL_t *);
  */
 static void COMMANDHANDLER_sendResetResponse(PROTOCOL_ResultCode_t resultCode);
 static void COMMANDHANDLER_sendRequestVersionResponse(PROTOCOL_ResultCode_t resultCode,
-                                          uint8_t *firmwareVersion,
-                                          uint8_t *boardVersion);
+															uint8_t *deviceId,
+															uint8_t *firmwareVersion,
+															uint8_t *boardVersion);
 static void COMMANDHANDLER_sendConfigResponse(PROTOCOL_ResultCode_t resultCode);
 static void COMMANDHANDLER_sendDispenseCardResponse(PROTOCOL_ResultCode_t resultCode, uint32_t remainCard);
 static void COMMANDHANDLER_sendControlIOResponse(PROTOCOL_ResultCode_t resultCode);
@@ -61,6 +63,7 @@ static COMMANDHANDLER_HandleFunc COMMANDHANDLER_handleFuncTable[] = {
     [PROTOCOL_ID_CMD_REQUEST_VERSION] = COMMANDHANDLER_handleRequestVersion,
     [PROTOCOL_ID_CMD_CONFIG] = COMMANDHANDLER_handleConfig,
     [PROTOCOL_ID_CMD_DISPENSE_CARD] = COMMANDHANDLER_handleDispenseCard,
+    [PROTOCOL_ID_CMD_CONTROL_IO] = COMMANDHANDLER_handleControlIO,
     [PROTOCOL_ID_CMD_CONTROL_IO] = COMMANDHANDLER_handleControlIO,
 };
 static PROTOCOL_t protocolMessage;
@@ -97,27 +100,28 @@ static void COMMANDHANDLER_handleReset(PROTOCOL_t *proto) {
 }
 
 static void COMMANDHANDLER_handleRequestVersion(PROTOCOL_t *proto) {
-  uint8_t firmwareVersion[3], boardVersion[3];
+	uint8_t deviceId[6], firmwareVersion[3], boardVersion[3];
 
-  if (proto->data_len != 0) {
-    utils_log_error(
-        "HandleRequestVersion failed: Invalid data_len %d, expected 0\r\n",
-        proto->data_len);
-    COMMANDHANDLER_sendRequestVersionResponse(
-        PROTOCOL_RESULT_COMM_PROTOCOL_DATA_LEN_INVALID, firmwareVersion,
-        boardVersion);
-    return;
-  }
+	if (proto->data_len != 0) {
+		utils_log_error(
+			"HandleRequestVersion failed: Invalid data_len %d, expected 0\r\n",
+			proto->data_len);
+		COMMANDHANDLER_sendRequestVersionResponse(
+			PROTOCOL_RESULT_COMM_PROTOCOL_DATA_LEN_INVALID, deviceId, firmwareVersion,
+			boardVersion);
+		return;
+	}
+	char * deviceIdStr = CONFIG_get()->device_id;
+	memcpy(deviceId, deviceIdStr, sizeof(deviceId));
 
-  firmwareVersion[0] = FIRMWARE_VERSION_MAJOR;
-  firmwareVersion[1] = FIRMWARE_VERSION_MINOR;
-  firmwareVersion[2] = FIRMWARE_VERSION_PATCH;
-  boardVersion[0] = BOARD_VERSION_MAJOR;
-  boardVersion[1] = BOARD_VERSION_MINOR;
-  boardVersion[2] = BOARD_VERSION_PATCH;
+	firmwareVersion[0] = FIRMWARE_VERSION_MAJOR;
+	firmwareVersion[1] = FIRMWARE_VERSION_MINOR;
+	firmwareVersion[2] = FIRMWARE_VERSION_PATCH;
+	boardVersion[0] = BOARD_VERSION_MAJOR;
+	boardVersion[1] = BOARD_VERSION_MINOR;
+	boardVersion[2] = BOARD_VERSION_PATCH;
 
-  COMMANDHANDLER_sendRequestVersionResponse(PROTOCOL_RESULT_SUCCESS,
-                                            firmwareVersion, boardVersion);
+	COMMANDHANDLER_sendRequestVersionResponse(PROTOCOL_RESULT_SUCCESS, deviceId, firmwareVersion, boardVersion);
 }
 
 static void COMMANDHANDLER_handleConfig(PROTOCOL_t *proto) {
@@ -187,20 +191,27 @@ static void COMMANDHANDLER_sendResetResponse(PROTOCOL_ResultCode_t resultCode) {
   PROTOCOL_send(&protocol);
 }
 static void COMMANDHANDLER_sendRequestVersionResponse(PROTOCOL_ResultCode_t resultCode,
-                                          uint8_t *firmwareVersion,
-                                          uint8_t *boardVersion) {
-  PROTOCOL_t protocol;
-  protocol.protocol_id = PROTOCOL_ID_CMD_RESET;
-  protocol.data_len = 7;
-  protocol.data[0] = resultCode;
-  protocol.data[1] = firmwareVersion[0];
-  protocol.data[2] = firmwareVersion[1];
-  protocol.data[3] = firmwareVersion[2];
-  protocol.data[4] = boardVersion[0];
-  protocol.data[5] = boardVersion[1];
-  protocol.data[6] = boardVersion[2];
+											  uint8_t *deviceId,
+											  uint8_t *firmwareVersion,
+											  uint8_t *boardVersion) {
+	PROTOCOL_t protocol;
+	protocol.protocol_id = PROTOCOL_ID_CMD_RESET;
+	protocol.data_len = 0;
+	protocol.data[protocol.data_len++] = resultCode;
+	protocol.data[protocol.data_len++] = deviceId[0];
+	protocol.data[protocol.data_len++] = deviceId[1];
+	protocol.data[protocol.data_len++] = deviceId[2];
+	protocol.data[protocol.data_len++] = deviceId[3];
+	protocol.data[protocol.data_len++] = deviceId[4];
+	protocol.data[protocol.data_len++] = deviceId[5];
+	protocol.data[protocol.data_len++] = firmwareVersion[0];
+	protocol.data[protocol.data_len++] = firmwareVersion[1];
+	protocol.data[protocol.data_len++] = firmwareVersion[2];
+	protocol.data[protocol.data_len++] = boardVersion[0];
+	protocol.data[protocol.data_len++] = boardVersion[1];
+	protocol.data[protocol.data_len++] = boardVersion[2];
 
-  PROTOCOL_send(&protocol);
+	PROTOCOL_send(&protocol);
 }
 static void COMMANDHANDLER_sendConfigResponse(PROTOCOL_ResultCode_t resultCode) {
   PROTOCOL_t protocol;

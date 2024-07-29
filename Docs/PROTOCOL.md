@@ -41,10 +41,11 @@ This feature will be implemented when this product go to mass production.
       | ---------- | ----------- | -------- | ---------------- | --------- |
       | 0x78 | 0x02 | 0 | ${computationByCrc16Arc} | 0x79 |
     - Response:
-      | START_BYTE | PROTOCOL_ID | DATA_LEN |RESULT_CODE| FIRMWARE_VERSION[0:2] | BOARD_VERSION[0:2]|CHECK_SUM | STOP_BYTE |
-      | ---------- | -----------| -------- | -------- | -------- | -------- | ---------------- | --------- |
-      | 0x78 | 0x02 | 7 | ${ResultCode} |${firmwareVersion} | ${boardVersion} |${computationByCrc16Arc} | 0x79 |
+      | START_BYTE | PROTOCOL_ID | DATA_LEN | RESULT_CODE | DEVICE_ID[0:5] | FIRMWARE_VERSION[0:2] | BOARD_VERSION[0:2]|CHECK_SUM | STOP_BYTE |
+      | ---------- | ---------- | -----------| -------- | -------- | -------- | -------- | ---------------- | --------- |
+      | 0x78 | 0x02 | 7 | ${ResultCode} |${deviceId}|${firmwareVersion} | ${boardVersion} |${computationByCrc16Arc} | 0x79 |
 
+    - Device ID: 6 bytes
     - Firmware Version: Major (Index 0), Minor (Index 1), Patch (Index 2)
     - Board Version: Major (Index 0), Minor (Index 1), Patch (Index 2)
 

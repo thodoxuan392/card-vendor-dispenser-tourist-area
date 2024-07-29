@@ -15,13 +15,17 @@
 #include "Device/rfid.h"
 #include "Hal/timer.h"
 
+#define STATEMACHINE_WAIT_FOR_TCD_UPDATE_STATUS_TIMEOUT_LOWER 	5000
+#define STATEMACHINE_WAIT_FOR_TCD_UPDATE_STATUS_TIMEOUT_NORMAL	1000
+
 #define STATEMACHINE_WAIT_FOR_RFID_DETECTED_TIMEOUT		20000
 #define STATEMACHINE_WAIT_FOR_RFID_UPDATE_TIMEOUT		20000
-#define STATEMACHINE_WAIT_FOR_DISPENSE_TIMEOUT			60000
+#define STATEMACHINE_WAIT_FOR_DISPENSE_TIMEOUT			20000
 #define STATEMACHINE_DISPENSE_INTERVAL_MIN				1000
 
 typedef enum {
 	STATEMACHINE_STATE_IDLE,
+	STATEMACHINE_STATE_WAIT_FOR_TCD,
 	STATEMACHINE_STATE_WAIT_FOR_RFID_DETECTED,
 	STATEMACHINE_STATE_UPDATE_RFID,
 	STATEMACHINE_STATE_WAIT_FOR_UPDATE_RFID_RESULT,
@@ -30,10 +34,12 @@ typedef enum {
 }STATEMACHINE_State;
 
 static void STATEMACHINE_1msInterrupt(void);
+static void STATEMACHINE_resetEquipmentStatus(void);
 
 static void STATEMACHINE_runBillAcceptorHandling(void);
 
 static void STATEMACHINE_idle(void);
+static void STATEMACHINE_waitForTCD(void);
 static void STATEMACHINE_waitForRFIDDetected(void);
 static void STATEMACHINE_updateRFID(void);
 static void STATEMACHINE_waitForUpdateRFIDResult(void);
@@ -49,6 +55,7 @@ static STATEMACHINE_State STATEMACHINE_state = STATEMACHINE_STATE_IDLE;
 static STATEMACHINE_DispenseResultCallback STATEMACHINE_dispenseResultCallback;
 static RFID_Id_t STATEMACHINE_tcdToRfid[] = {
 	[TCD_1] = RFID_ID_1,
+	[TCD_2] = RFID_ID_2,
 };
 
 static bool STATEMACHINE_requestFlag = false;
@@ -81,6 +88,9 @@ void STATEMACHINE_run(void){
 	switch (STATEMACHINE_state) {
 		case STATEMACHINE_STATE_IDLE:
 			STATEMACHINE_idle();
+			break;
+		case STATEMACHINE_STATE_WAIT_FOR_TCD:
+			STATEMACHINE_waitForTCD();
 			break;
 		case STATEMACHINE_STATE_WAIT_FOR_RFID_DETECTED:
 			STATEMACHINE_waitForRFIDDetected();
@@ -122,12 +132,40 @@ void STATEMACHINE_setDispenseResultCallback(STATEMACHINE_DispenseResultCallback 
 
 
 static void STATEMACHINE_idle(void){
-	if(TCDMNG_is_available_for_use(&STATEMACHINE_usingTcdId) && STATEMACHINE_requestFlag && STATEMACHINE_nbCardRequest > 0){
+	if(STATEMACHINE_requestFlag && STATEMACHINE_nbCardRequest > 0){
 		STATEMACHINE_requestFlag = false;
-		STATEMACHINE_timeoutCnt = STATEMACHINE_WAIT_FOR_RFID_DETECTED_TIMEOUT;
-		STATEMACHINE_timeoutFlag = false;
-		STATEMACHINE_state = STATEMACHINE_STATE_WAIT_FOR_RFID_DETECTED;
+		STATEMACHINE_timeoutFlag = true;	// Mark timeout = true immediately
+		STATEMACHINE_timeoutCnt = 0;
+		STATEMACHINE_dispenseCorruptFlag = false;
+		STATEMACHINE_dispenseCompleteFlag = false;
+		STATEMACHINE_state = STATEMACHINE_STATE_WAIT_FOR_TCD;
 		return;
+	}
+}
+
+
+static void STATEMACHINE_waitForTCD(void){
+	// Timeout from Idle or From Dispense Complete
+	if(STATEMACHINE_timeoutFlag){
+		if(TCDMNG_is_available_for_use(&STATEMACHINE_usingTcdId)){
+			// Reset State to make sure that TCD is work normally
+			TCDMNG_reset_state(STATEMACHINE_usingTcdId);
+			// Send Signal to dispense card to prepare to read by RFID
+			if(!TCDMNG_prepare_card(STATEMACHINE_usingTcdId)){
+				STATEMACHINE_resetEquipmentStatus();
+				STATEMACHINE_dispenseResultCallback(PROTOCOL_RESULT_CMD_DISPENSE_CARD_TCD_PAYOUT_FAILED, STATEMACHINE_nbCardRequest);
+				STATEMACHINE_state = STATEMACHINE_STATE_IDLE;
+				return;
+			}
+			STATEMACHINE_timeoutFlag = false;
+			STATEMACHINE_timeoutCnt = STATEMACHINE_WAIT_FOR_RFID_UPDATE_TIMEOUT;
+			STATEMACHINE_state = STATEMACHINE_STATE_WAIT_FOR_RFID_DETECTED;
+		}else {
+			// Don't have any TCD available to use
+			STATEMACHINE_dispenseResultCallback(PROTOCOL_RESULT_CMD_DISPENSE_CARD_NOT_AVAILABLE, STATEMACHINE_nbCardRequest);
+			STATEMACHINE_state = STATEMACHINE_STATE_IDLE;
+			return;
+		}
 	}
 }
 
@@ -141,6 +179,7 @@ static void STATEMACHINE_waitForRFIDDetected(void){
 	}
 	if(STATEMACHINE_timeoutFlag){
 		STATEMACHINE_dispenseResultCallback(PROTOCOL_RESULT_CMD_DISPENSE_CARD_TIMEOUT, STATEMACHINE_nbCardRequest);
+		STATEMACHINE_resetEquipmentStatus();
 		STATEMACHINE_state = STATEMACHINE_STATE_IDLE;
 		return;
 	}
@@ -152,6 +191,7 @@ static void STATEMACHINE_updateRFID(void){
 	STATEMACHINE_usingRfid.type = STATEMACHINE_cardTypeRequest;
 	if(!RFID_set(usingRfidId, &STATEMACHINE_usingRfid)){
 		STATEMACHINE_dispenseResultCallback(PROTOCOL_RESULT_CMD_DISPENSE_CARD_UPDATE_RFID_FAILED, STATEMACHINE_nbCardRequest);
+		STATEMACHINE_resetEquipmentStatus();
 		STATEMACHINE_state = STATEMACHINE_STATE_IDLE;
 		return;
 	}
@@ -169,6 +209,7 @@ static void STATEMACHINE_waitForUpdateRFIDResult(void){
 			return;
 		}else {
 			STATEMACHINE_dispenseResultCallback(PROTOCOL_RESULT_CMD_DISPENSE_CARD_UPDATE_RFID_FAILED, STATEMACHINE_nbCardRequest);
+			STATEMACHINE_resetEquipmentStatus();
 			STATEMACHINE_state = STATEMACHINE_STATE_IDLE;
 			return;
 		}
@@ -176,12 +217,15 @@ static void STATEMACHINE_waitForUpdateRFIDResult(void){
 
 	if(STATEMACHINE_timeoutFlag){
 		STATEMACHINE_dispenseResultCallback(PROTOCOL_RESULT_CMD_DISPENSE_CARD_UPDATE_RFID_FAILED, STATEMACHINE_nbCardRequest);
+		STATEMACHINE_resetEquipmentStatus();
 		STATEMACHINE_state = STATEMACHINE_STATE_IDLE;
 		return;
 	}
 }
+
 static void STATEMACHINE_dispense(void){
 	if(!TCDMNG_payout(STATEMACHINE_usingTcdId)){
+		STATEMACHINE_resetEquipmentStatus();
 		STATEMACHINE_dispenseResultCallback(PROTOCOL_RESULT_CMD_DISPENSE_CARD_TCD_PAYOUT_FAILED, STATEMACHINE_nbCardRequest);
 		STATEMACHINE_state = STATEMACHINE_STATE_IDLE;
 		return;
@@ -194,27 +238,35 @@ static void STATEMACHINE_dispense(void){
 static void STATEMACHINE_waitForDispenseComplete(void){
 	if(STATEMACHINE_dispenseCompleteFlag){
 		STATEMACHINE_dispenseCompleteFlag = false;
+		// Handle Remain Card
 		STATEMACHINE_nbCardRequest--;
+		STATEMACHINE_dispenseResultCallback(PROTOCOL_RESULT_SUCCESS, STATEMACHINE_nbCardRequest);
 		if(STATEMACHINE_nbCardRequest == 0){
 			STATEMACHINE_state = STATEMACHINE_STATE_IDLE;
+			return;
 		}else {
-			STATEMACHINE_timeoutCnt = STATEMACHINE_WAIT_FOR_RFID_DETECTED_TIMEOUT;
+			if(TCD_is_lower(STATEMACHINE_usingTcdId)){
+				STATEMACHINE_timeoutCnt = STATEMACHINE_WAIT_FOR_TCD_UPDATE_STATUS_TIMEOUT_LOWER;
+			}else {
+				STATEMACHINE_timeoutCnt = STATEMACHINE_WAIT_FOR_TCD_UPDATE_STATUS_TIMEOUT_NORMAL;
+			}
 			STATEMACHINE_timeoutFlag = false;
-			STATEMACHINE_state = STATEMACHINE_STATE_WAIT_FOR_RFID_DETECTED;
+			STATEMACHINE_state = STATEMACHINE_STATE_WAIT_FOR_TCD;
 		}
-		STATEMACHINE_dispenseResultCallback(PROTOCOL_RESULT_SUCCESS, STATEMACHINE_nbCardRequest);
 		return;
 	}
 
 	if(STATEMACHINE_dispenseCorruptFlag){
 		STATEMACHINE_dispenseCorruptFlag = false;
 		STATEMACHINE_dispenseResultCallback(PROTOCOL_RESULT_CMD_DISPENSE_CARD_CORRUPT, STATEMACHINE_nbCardRequest);
+		STATEMACHINE_resetEquipmentStatus();
 		STATEMACHINE_state = STATEMACHINE_STATE_IDLE;
 		return;
 	}
 
 	if(STATEMACHINE_timeoutFlag){
 		STATEMACHINE_dispenseResultCallback(PROTOCOL_RESULT_CMD_DISPENSE_CARD_TIMEOUT, STATEMACHINE_nbCardRequest);
+		STATEMACHINE_resetEquipmentStatus();
 		STATEMACHINE_state = STATEMACHINE_STATE_IDLE;
 		return;
 	}
@@ -235,6 +287,13 @@ static void STATEMACHINE_1msInterrupt(void){
 			STATEMACHINE_timeoutFlag = true;
 		}
 	}
+}
+
+static void STATEMACHINE_resetEquipmentStatus(void){
+	TCDMNG_reset_state(STATEMACHINE_usingTcdId);
+	TCDMNG_callback(STATEMACHINE_usingTcdId);
+	STATEMACHINE_dispenseCorruptFlag = false;
+	STATEMACHINE_dispenseCompleteFlag = false;
 }
 
 static void STATEMACHINE_tcdCompletedCallback(TCD_id_t id){

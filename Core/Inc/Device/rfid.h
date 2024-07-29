@@ -23,7 +23,7 @@ typedef enum {
 } RFID_Error_t;
 
 
-typedef enum { RFID_ID_1 = 0, RFID_ID_MAX } RFID_Id_t;
+typedef enum { RFID_ID_1 = 0, RFID_ID_2, RFID_ID_MAX } RFID_Id_t;
 
 typedef struct {
   uint8_t id[RFID_ID_MAX_LENGTH];

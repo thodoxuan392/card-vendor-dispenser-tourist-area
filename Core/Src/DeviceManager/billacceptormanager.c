@@ -99,6 +99,9 @@ static void BILLACCEPTOR_save_amount_to_eeprom(uint32_t amount, uint32_t _total_
 
 bool BILLACCEPTORMNG_init(){
 	CONFIG_t * config = CONFIG_get();
+	// Short Delay to wait for Bill Acceptor Power is up properly
+	HAL_Delay(5000);
+	// Normal Reset and init
 	BILLACCEPTOR_reset();
 	BILLACCEPTOR_Poll_t poll;
 	BILLACCEPTOR_poll(&poll);

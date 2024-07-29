@@ -12,8 +12,10 @@
 #include "main.h"
 
 #define INIT_DURATION 3000                   // 3s
-#define PAYOUT_DURATION 1000                  // 500ms
+#define PREPARE_CARD_DURATION 500                  // 500ms
+#define PAYOUT_DURATION 500                  // 500ms
 #define CALLBACK_DURATION 300                // 300ms
+#define PAYOUT_SINCE_PREPARE_CARD_TIMEOUT 30000     // 30 seconds
 #define CARD_TO_PLACE_CARD_TIMEOUT 10000     // 3 seconds
 #define TAKING_CARD_TIMEOUT 45000            // 45 seconds
 #define ERROR_CHECK_INTERVAL 3000            // 3s
@@ -24,6 +26,8 @@ enum {
   TCD_IDLE,
   TCD_RESETING,
   TCD_WAIT_FOR_RESETING,
+  TCD_PREPARING_CARD,
+  TCD_WAIT_FOR_PREPARING_CARD,
   TCD_PAYOUTING,
   TCD_WAIT_FOR_PAYOUTING,
   TCD_WAIT_FOR_CARD_IN_PLACE,
@@ -45,12 +49,16 @@ typedef struct {
   uint32_t timeout_task_id;
   bool timeout;
 
+  bool payoutRequest;
+
 } TCD_HandleType_t;
 
 static const char *tcd_state_name[] = {
     [TCD_IDLE] = "TCD_IDLE\r\n",
     [TCD_RESETING] = "TCD_RESETING\r\n",
     [TCD_WAIT_FOR_RESETING] = "TCD_WAIT_FOR_RESETING\r\n",
+    [TCD_PREPARING_CARD] = "TCD_PREPARING_CARD\r\n",
+    [TCD_WAIT_FOR_PREPARING_CARD] = "TCD_WAIT_FOR_PREPARING_CARD\r\n",
     [TCD_PAYOUTING] = "TCD_PAYOUTING\r\n",
     [TCD_WAIT_FOR_PAYOUTING] = "TCD_WAIT_FOR_PAYOUTING\r\n",
     [TCD_WAIT_FOR_CARD_IN_PLACE] = "TCD_WAIT_FOR_CARD_IN_PLACE\r\n",
@@ -89,6 +97,8 @@ static void TCD_run(TCD_HandleType_t *htcd);
 static void TCD_idle(TCD_HandleType_t *htcd);
 static void TCD_reseting(TCD_HandleType_t *htcd);
 static void TCD_wait_for_reseting(TCD_HandleType_t *htcd);
+static void TCD_preparing_card(TCD_HandleType_t *htcd);
+static void TCD_wait_for_preparing_card(TCD_HandleType_t *htcd);
 static void TCD_payouting(TCD_HandleType_t *htcd);
 static void TCD_wait_for_payouting(TCD_HandleType_t *htcd);
 static void TCD_wait_for_card_in_place(TCD_HandleType_t *htcd);
@@ -148,48 +158,58 @@ void TCDMNG_reset() {
   htcd_2.state = TCD_RESETING;
 }
 
-bool TCDMNG_payout(TCD_id_t id) {
+bool TCDMNG_prepare_card(TCD_id_t id) {
 	if(id == TCD_1){
-		if (TCD_is_available(&htcd_1) && ((htcd_1.state == TCD_IDLE) || (htcd_1.state == TCD_WAIT_FOR_UPDATING_STATUS)) ) {
-		  htcd_1.state = TCD_PAYOUTING;
-		  tcd_using = TCD_1;
-		  return true;
-		}
+		htcd_1.state = TCD_PREPARING_CARD;
+		tcd_using = TCD_1;
+		return true;
 	}
 
 	if(id == TCD_2){
-		if (TCD_is_available(&htcd_2) && ((htcd_2.state == TCD_IDLE) || (htcd_2.state == TCD_WAIT_FOR_UPDATING_STATUS)) ) {
-		  htcd_2.state = TCD_PAYOUTING;
-		  tcd_using = TCD_2;
-		  return true;
-		}
+		htcd_2.state = TCD_PREPARING_CARD;
+		tcd_using = TCD_2;
+		return true;
 	}
 	return false;
 }
 
-bool TCDMNG_callback() {
-  if (tcd_using == TCD_1) {
-    if (TCD_is_available(&htcd_2) && htcd_2.state == TCD_IDLE) {
-      htcd_2.state = TCD_CALLBACKING;
-      tcd_using = TCD_2;
-    } else if (TCD_is_available(&htcd_1) && htcd_1.state == TCD_IDLE) {
-      htcd_1.state = TCD_CALLBACKING;
-      tcd_using = TCD_1;
-    } else {
-      return false;
-    }
-  } else if (tcd_using == TCD_2) {
-    if (TCD_is_available(&htcd_1) && htcd_1.state == TCD_IDLE) {
-      htcd_1.state = TCD_CALLBACKING;
-      tcd_using = TCD_1;
-    } else if (TCD_is_available(&htcd_2) && htcd_2.state == TCD_IDLE) {
-      htcd_2.state = TCD_CALLBACKING;
-      tcd_using = TCD_2;
-    } else {
-      return false;
-    }
-  }
-  return true;
+bool TCDMNG_payout(TCD_id_t id) {
+	if(id == TCD_1){
+		htcd_1.payoutRequest = true;
+		tcd_using = TCD_1;
+		return true;
+	}
+
+	if(id == TCD_2){
+		htcd_2.payoutRequest = true;
+		tcd_using = TCD_2;
+		return true;
+	}
+	return false;
+}
+
+bool TCDMNG_callback(TCD_id_t id) {
+	if(id == TCD_1){
+		htcd_1.state = TCD_CALLBACKING;
+		tcd_using = TCD_1;
+		return true;
+	}
+
+	if(id == TCD_2){
+		htcd_2.state = TCD_CALLBACKING;
+		tcd_using = TCD_2;
+		return true;
+	}
+	return true;
+}
+
+bool TCDMNG_reset_state(TCD_id_t id){
+	TCD_HandleType_t *htcd = (id == TCD_1)? &htcd_1: &htcd_2;
+	htcd->state = TCD_IDLE;
+	htcd->timeout = false;
+	htcd->payoutRequest = false;
+	SCH_Delete_Task(htcd->timeout_task_id);
+
 }
 
 bool TCDMNG_is_error() {
@@ -239,6 +259,12 @@ static void TCD_run(TCD_HandleType_t *htcd) {
   case TCD_WAIT_FOR_RESETING:
     TCD_wait_for_reseting(htcd);
     break;
+  case TCD_PREPARING_CARD:
+	TCD_preparing_card(htcd);
+	break;
+  case TCD_WAIT_FOR_PREPARING_CARD:
+ 	TCD_wait_for_preparing_card(htcd);
+ 	break;
   case TCD_PAYOUTING:
     TCD_payouting(htcd);
     break;
@@ -298,14 +324,51 @@ static void TCD_wait_for_reseting(TCD_HandleType_t *htcd) {
   }
 }
 
-static void TCD_payouting(TCD_HandleType_t *htcd) {
+static void TCD_preparing_card(TCD_HandleType_t *htcd) {
   TCD_payout_card(htcd->id, true);
   SCH_Delete_Task(htcd->timeout_task_id);
   htcd->timeout = false;
   void *timeout_func =
       htcd->id == TCD_1 ? TCD_timeout_tcd_1 : TCD_timeout_tcd_2;
-  htcd->timeout_task_id = SCH_Add_Task(timeout_func, PAYOUT_DURATION, 0);
-  htcd->state = TCD_WAIT_FOR_PAYOUTING;
+  htcd->timeout_task_id = SCH_Add_Task(timeout_func, PREPARE_CARD_DURATION, 0);
+  htcd->state = TCD_WAIT_FOR_PREPARING_CARD;
+}
+
+
+static void TCD_wait_for_preparing_card(TCD_HandleType_t *htcd) {
+  if (htcd->timeout) {
+    TCD_payout_card(htcd->id, false);
+    SCH_Delete_Task(htcd->timeout_task_id);
+    htcd->timeout = false;
+    void *timeout_func =
+        htcd->id == TCD_1 ? TCD_timeout_tcd_1 : TCD_timeout_tcd_2;
+    htcd->timeout_task_id =
+        SCH_Add_Task(timeout_func, PAYOUT_SINCE_PREPARE_CARD_TIMEOUT, 0);
+    htcd->state = TCD_PAYOUTING;
+  }
+}
+
+static void TCD_payouting(TCD_HandleType_t *htcd) {
+	if(htcd->payoutRequest){
+		htcd->payoutRequest = false;
+		TCD_payout_card(htcd->id, true);
+		SCH_Delete_Task(htcd->timeout_task_id);
+		htcd->timeout = false;
+		void *timeout_func =
+		htcd->id == TCD_1 ? TCD_timeout_tcd_1 : TCD_timeout_tcd_2;
+		htcd->timeout_task_id = SCH_Add_Task(timeout_func, PAYOUT_DURATION, 0);
+		htcd->state = TCD_WAIT_FOR_PAYOUTING;
+		return;
+	}
+
+	if(htcd->timeout){
+	    SCH_Delete_Task(htcd->timeout_task_id);
+		htcd->timeout = false;
+		// Timeout to payout -> Reset state to IDLE
+		htcd->state = TCD_IDLE;
+		return;
+	}
+
 }
 
 static void TCD_wait_for_payouting(TCD_HandleType_t *htcd) {
