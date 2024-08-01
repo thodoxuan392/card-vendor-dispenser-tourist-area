@@ -73,14 +73,24 @@ This feature will be implemented when this product go to mass production.
       | ---------- | ----------- | -------- | -------- | -------- | -------- | ---------------- |
       | 0x78 | 0x11 | 2 | ${nbCard} | ${cardType} | ${computationByCrc16Arc} | 0x79 |
     - Response:
-      | START_BYTE | PROTOCOL_ID | DATA_LEN | RESULT_CODE | CHECK_SUM | STOP_BYTE |
-      | ---------- | ----------- | -------- | ------------- | ------------------------ | --------- |
-      | 0x78 | 0x11 | 1 | ${ResultCode} | ${computationByCrc16Arc} | 0x79 |
+      | START_BYTE | PROTOCOL_ID | DATA_LEN | RESULT_CODE | NB_REMAIN_CARD | CARD_INFO | CHECK_SUM | STOP_BYTE |
+      | ---------- | ----------- | -------- | ------------- | ------------------------ | --------- |--------- |--------- |
+      | 0x78 | 0x11 | 2 + cardInfoLen | ${ResultCode} | ${nbRemainCard}| ${cardInfo} | ${computationByCrc16Arc} | 0x79 |
 
     - nbCard: Number of Card to dispense
     - cardType: Type of Card to dispense:
+
         - CARD_TYPE_LEVEL_1: 0x01
         - CARD_TYPE_LEVEL_2: 0x02
+
+    - CardInfo as below:
+      | Byte No | Data |
+      | ---------- | ----------- |
+      | 0 | Id Len |
+      | 1:IdLen | Id |
+      | IdLen + 1 | Code |
+      | IdLen + 2 | Type |
+      | IdLen + 3 | isUsed |
 
 5. **Control IO (Protocol 0x14)**
 
